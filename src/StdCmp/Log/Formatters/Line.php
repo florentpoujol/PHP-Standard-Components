@@ -33,7 +33,7 @@ class Line
      */
     public function __invoke(array $record): string
     {
-        if (strpos($record["message"], "{datetime}") !== false) {
+        if (strpos($this->config["line_format"], "{datetime}") !== false) {
             //$datetime = new \DateTime();
             //$datetime->setTimestamp($record["timestamp"]);
             //$datetime->setTimezone(); // ??

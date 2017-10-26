@@ -1,35 +1,18 @@
 # Log
 
-This Logging library provides standard facilities for logging information of various priority to various devices.
+This Logging library provides standard facilities for logging information to various devices.
 
-Each log record is made up of:
-- the priority,
-- the priority name,
-- the textual message,
-- a context array that my hold any arbitrary data
-
-The Logger object (PSR-3 Compliant) will uses several helper callables to change the record information and if, how and where the record is saved.
-
-Processors may change the content of the record. Each logger may have several processors.
-
-Writers will write the record to a device (file, DB...).
-They first process 0 or more Filters to know if the should write the record.
-Then they pass the record to a single Formatter that returns it in a specific format.
-Then they write the formatted record to the device.
-They can be any callable but they are generally expected to be classes so that they can hold a list of Filters and a Formatter.
-
-Filters answers the question "Should the writer write that record ?". They return true or false based on some conditions. If any filter return false, the writer bails.
-
-Formatters return the record, formatted in a particular way.
+The Logger object (PSR-3 Compliant) will uses several helper callables (Processors, Writers, Filters and Formatters) to change the record information and if, how and where the record is saved.
 
 Remember that callables can be any of the following:
 - named or anonymous functions,
-- named or anonymous classes that implements the `__invoke()` magic method,
+- named classes that implements the `__invoke()` magic method (anonymous classes do not seems to be able to do this),
 - an arrays that contains an object and a method name,
-- an arrays that contains a class name and a static method name, or a string with this structure: `ClassName::staticMethodName`
+- an arrays that contains a class name and a static method name
+- or a string formatted like this: `ClassName::staticMethodName`
 
-The `StdCmp\Log` namespace is introduced. 
-All example below assume you have one of the relevant use import below.
+The `StdCmp\Log` namespace is introduced by this component. 
+All example below assume you have one of the relevant use imports, ie:
 
 ```
 use StdCmp\Log\Interfaces;
@@ -38,26 +21,6 @@ use StdCmp\Log\Writers;
 use StdCmp\Log\Filters;
 use StdCmp\Log\Formatters;
 ```
-
-## Priority
-
-Log priority constants are already defined in PHP. See https://secure.php.net/manual/en/function.syslog.php
-
-LOG_EMERG   = 0;
-LOG_ALERT   = 1;
-LOG_CRIT    = 2;
-LOG_ERR     = 3;
-LOG_WARNING = 4;
-LOG_NOTICE  = 5;
-LOG_INFO    = 6;
-LOG_DEBUG   = 7;
-
-The Logger class also define the following constant
-const PRORITY_NAMES = [
-    "emergency", "alert", "critical", "error",
-    "warning", "notice", "info", "debug"
-];
-
 
 ## Logger
 
@@ -72,7 +35,8 @@ $logger->log(LOG_WARNING, "OMG something is wrong");
 $logger->warning("OMG something is wrong", ["some" => "context"]); // with some context
 ```
 
-Each log record is internally an array containing these top level keys
+The log function creates a log record, that is processed by the other helpers. 
+Each log record is internally an array containing these top level keys.
 
 - priority (int)
 - priority_name (string)
@@ -81,19 +45,40 @@ Each log record is internally an array containing these top level keys
 - timestamp (int)
 - extra (array)
 
+### Priority
+
+Log priority constants are already defined in PHP. See https://secure.php.net/manual/en/function.syslog.php
+
+```
+LOG_EMERG   = 0;
+LOG_ALERT   = 1;
+LOG_CRIT    = 2;
+LOG_ERR     = 3;
+LOG_WARNING = 4;
+LOG_NOTICE  = 5;
+LOG_INFO    = 6;
+LOG_DEBUG   = 7;
+
+// The Logger class also define the following constant
+const PRORITY_NAMES = [
+    "emergency", "alert", "critical", "error",
+    "warning", "notice", "info", "debug"
+];
+```
 
 ## Processor
 
 A processor can be any callable.
 
 It receive the record as single parameters and must returns it.
-It can modify any part of the record,  but is often use to alter the message based on the content of the context array, or add informations in the extra array.
+It can modify any part of the record, but is often use to alter the message based on the content of the context array, or add information in the extra array.
 
-Processors are added to the logger via the `addProcessor(callable $processor[, int position])` method.
+Processors are added to the logger via the `addProcessor(callable $processor)` method.    
+See also the `getProcessors()` and `setProcessors(array)` methods.
 
 Ie:
 ```
-// a way to add Monolog's channel
+// a way to implement Monolog's "channel"
 $channelProcessor = function(array $record) {
     $record["extra"]["channel"] = "channel_name";
     return $record;
@@ -110,14 +95,6 @@ $psr3PlaceholdersProcessor = function(array $record) {
     return $record;
 }
 ```
-
-### Position argument
-
-When adding processors to the logger, they are added in a queue and then processed in order (first added, first processed).
-
-The optional position second argument allow to insert a new processor at the specified position. Any existing processor at the specified position or higher position are pushed back.
-
-This works the same for addFilter() and addWriter(
 
 
 ### Placeholder processor
@@ -284,7 +261,7 @@ $map = [
     "context.something" => "something",
     "extra.something" => "something_else"
 ];
-$formatter = Formatters\PDO(array $map);
+$formatter = Formatters\PDO(PDO $pdo[, array $map]);
 ```
 
 It returns an array with two keys: "query" (string) and  "data" (array).

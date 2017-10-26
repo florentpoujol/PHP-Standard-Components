@@ -1,27 +1,21 @@
-## Standard Components
+# PHP Standard Components
 
-This project aims to provide standard components that you find in many PHP libraries and Frameworks but as a PHP extension.
+This project aims to research and design basic standard components, that is a library that you find in practice in all major frameworks.
 
-The goal being mostly to reduce userland code and speed things up a little.
-
-Such components include:
+Such components typically include:
+- [logger](logger.md)
+- cache
 - routing
-- cache (driver for files, redis and memcache)
-- logger
 - dependency container/injection
 - HTTP wrapper (Request/Response classes)
-- events
-- filesystem
-- Console ?
-- Yaml parsing
-- ACL
-- Validator
+- ??
 
-The implementation of each is heavily inspired by what is alredy done in the symphony/iluminate components or other very popular libraries and respect the PSR recomendations -where applicable-.
+The idea is to research how the major frameworks (or the libraries they depends on) handle these subjects, and implements a reasonable common ground that could be implemented as its own standalone library.
 
-However the goal is not to port the PHP code of these components as an extension. The extension is to provide a basic, common implementation that would be suitable in most case. 
-It is the responsibility to each framework/users to decorate the extension's classes in the userland with their respective linking and additionnal features.
+It's not the design goal of a standard component to implement all of the features found in all the framework, but to find thee most common features, while thinking about how these framework would rewrite their code to be based on that standard component.
 
-They aims to be a basic building block at the language level.
+The [FIG's PSRs](http://www.php-fig.org/psr/) are also to bee taken into consideration.
 
-Ultimately, it can be imagined that these classes are integrated as a default component of PHP, probably part of the SPL extension...
+A good example of such standard component is the logger:
+- both Laravel and Symfony uses [Monolog](https://github.com/Seldaek/monolog)
+- The Zend framework do not use Monolg but its logger API is VERY similar (same system of logger, processors, writers (handlers in Monolog), filter and formatters)

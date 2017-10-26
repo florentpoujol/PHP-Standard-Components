@@ -40,10 +40,12 @@ class Logger implements Interfaces\Logger
     public function setProcessors(array $processors)
     {
         $this->processors = [];
-        foreach ($processors as $processor) {
-            if (is_callable($processor)) {
-                $this->processors[] = $processor;
+        foreach ($processors as $id => $processor) {
+            if (!is_callable($processor)) {
+                throw new \UnexpectedValueException("Processor n°$id is a " . gettype($processor) . " instead of a callable.");
             }
+
+            $this->processors[] = $processor;
         }
     }
 
@@ -69,10 +71,12 @@ class Logger implements Interfaces\Logger
     public function setWriters(array $writers)
     {
         $this->writers = [];
-        foreach ($writers as $writer) {
-            if (is_callable($writer)) {
-                $this->writers[] = $writer;
+        foreach ($writers as $id => $writer) {
+            if (!is_callable($writer)) {
+                throw new \UnexpectedValueException("Writer n°$id is a " . gettype($writer) . " instead of a callable.");
             }
+
+            $this->writers[] = $writer;
         }
     }
 
@@ -91,15 +95,18 @@ class Logger implements Interfaces\Logger
     {
         $record = [
             "priority" => $priority,
-            "prority_name" => self::PRIORITY_NAMES[$priority],
+            "priority_name" => self::PRIORITY_NAMES[$priority],
             "message" => $message,
             "context" => $context,
             "timestamp" => time(),
             "extra" => [],
         ];
 
-        foreach ($this->processors as $processor) {
+        foreach ($this->processors as $key => $processor) {
             $record = $processor($record);
+            if (empty($record) || !is_array($record)) {
+                throw new \UnexpectedValueException("Processor n°$key returns non array");
+            }
         }
 
         if (count($this->writers) <= 0) {

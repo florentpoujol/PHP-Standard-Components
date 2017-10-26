@@ -42,10 +42,12 @@ abstract class Writer implements Interfaces\Writer
     public function setFilters(array $filters)
     {
         $this->filters = [];
-        foreach ($filters as $filter) {
-            if (is_callable($filter)) {
-                $this->filters[] = $filter;
+        foreach ($filters as $id => $filter) {
+            if (!is_callable($filter)) {
+                throw new \UnexpectedValueException("Filter n°$id is a " . gettype($filter) . " instead of a callable.");
             }
+
+            $this->filters[] = $filter;
         }
     }
 
@@ -54,9 +56,7 @@ abstract class Writer implements Interfaces\Writer
      */
     public function setFormatter(callable $formatter)
     {
-        if (is_callable($formatter)) {
-            $this->formatter = $formatter;
-        }
+        $this->formatter = $formatter;
     }
 
     /**
