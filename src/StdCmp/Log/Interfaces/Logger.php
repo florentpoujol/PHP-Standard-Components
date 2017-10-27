@@ -2,7 +2,7 @@
 
 namespace StdCmp\Log\Interfaces;
 
-interface Logger
+interface Logger extends Helpable
 {
     /**
      * @var string[]
@@ -11,23 +11,6 @@ interface Logger
         "emergency", "alert", "critical", "error",
         "warning", "notice", "info", "debug"
     ];
-
-    /**
-     * @param callable $processor
-     * @return void
-     */
-    public function addProcessor(callable $processor);
-
-    /**
-     * @return array
-     */
-    public function getProcessors(): array;
-
-    /**
-     * @param callable[] $processors
-     * @return void
-     */
-    public function setProcessors(array $processors);
 
     /**
      * @param callable $writer

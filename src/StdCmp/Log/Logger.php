@@ -2,52 +2,16 @@
 
 namespace StdCmp\Log;
 
+use StdCmp\Log\Traits;
+
 class Logger implements Interfaces\Logger
 {
-    /**
-     * The list of processors for this logger.
-     *
-     * @var callable[]
-     */
-    protected $processors = [];
+    use Traits\Helpable;
 
     /**
-     * The list of writers for this logger.
-     *
      * @var callable[]
      */
     protected $writers = [];
-
-    /**
-     * {@inheritDoc}
-     */
-    public function addProcessor(callable $processor)
-    {
-        $this->processors[] = $processor;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function getProcessors(): array
-    {
-        return $this->processors;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function setProcessors(array $processors)
-    {
-        $this->processors = [];
-        foreach ($processors as $id => $processor) {
-            if (!is_callable($processor)) {
-                throw new \UnexpectedValueException("Processor n°$id is a " . gettype($processor) . " instead of a callable.");
-            }
-
-            $this->processors[] = $processor;
-        }
-    }
 
     /**
      * {@inheritDoc}
@@ -81,6 +45,17 @@ class Logger implements Interfaces\Logger
     }
 
     /**
+     * @param string|null $streamPath
+     * @internal param null|string $path
+     */
+    public function __construct(string $streamPath = null)
+    {
+        if ($streamPath !== null) {
+            $this->addWriter(new Writers\Stream($streamPath));
+        }
+    }
+
+    /**
      * Logs with an arbitrary priority.
      *
      * @param int $priority
@@ -102,11 +77,9 @@ class Logger implements Interfaces\Logger
             "extra" => [],
         ];
 
-        foreach ($this->processors as $key => $processor) {
-            $record = $processor($record);
-            if (empty($record) || !is_array($record)) {
-                throw new \UnexpectedValueException("Processor n°$key returns non array");
-            }
+        $record = $this->processHelpers($record);
+        if ($record === false) {
+            return;
         }
 
         if (count($this->writers) <= 0) {
@@ -116,7 +89,9 @@ class Logger implements Interfaces\Logger
         }
 
         foreach ($this->writers as $writer) {
-            $writer($record);
+            if ($writer($record) === false) {
+                return;
+            }
         }
     }
 

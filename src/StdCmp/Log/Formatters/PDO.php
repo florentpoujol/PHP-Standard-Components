@@ -61,7 +61,7 @@ class PDO
      * @param string $recordKey
      * @return mixed
      */
-    protected function getRecordValue(string $recordKey)
+    protected function getRecordValue(Text $recordKey)
     {
         $keys = explode(".", $recordKey);
         $value = $this->record;
@@ -81,7 +81,7 @@ class PDO
      * @param array $data
      * @return string
      */
-    protected function buildQuery(array $data): string
+    protected function buildQuery(array $data): Text
     {
         $fields = "";
         $values = "";

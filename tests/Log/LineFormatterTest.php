@@ -1,7 +1,7 @@
 <?php
 
 use PHPUnit\Framework\TestCase;
-use StdCmp\Log\Formatters\Line;
+use StdCmp\Log\Formatters\Text;
 
 class LineFormatterTest extends TestCase
 {
@@ -15,7 +15,7 @@ class LineFormatterTest extends TestCase
             "timestamp" => 123456789, // Thu, 29 Nov 1973 21:33:09 GMT
             "extra" => [],
         ];
-        $formatter = new Line();
+        $formatter = new Text();
 
         $output = $formatter($record);
 
@@ -35,7 +35,7 @@ class LineFormatterTest extends TestCase
             "extra" => [],
         ];
         $config = ["line_format" => "{datetime} {context.some} {notintherecord}"];
-        $formatter = new Line($config);
+        $formatter = new Text($config);
 
         $output = $formatter($record);
 
@@ -57,7 +57,7 @@ class LineFormatterTest extends TestCase
             "line_format" => "{datetime} {context.some} {notintherecord}",
             "datetime_format" => "H:i:s",
         ];
-        $formatter = new Line($config);
+        $formatter = new Text($config);
 
         $output = $formatter($record);
 

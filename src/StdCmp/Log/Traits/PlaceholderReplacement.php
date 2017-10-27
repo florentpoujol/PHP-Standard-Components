@@ -36,17 +36,19 @@ trait PlaceholderReplacement
             $valueIsEmpty = empty($value);
 
             if (strpos($input, $placeholder) !== false) {
+                // placeholder for this key
+                if (is_object($value) && !method_exists($value, "__tostring")) {
+                    $value = (array)$value;
+                    $valueIsArray = true;
+                    $valueIsEmpty = empty($value);
+                }
+
                 if ($valueIsArray) {
                     if ($valueIsEmpty) {
                         $value = "";
                     } else {
                         $value = json_encode($value); // could use var_export ?
                     }
-                }
-
-                if (is_object($value) && !method_exists($value, "__tostring")) {
-                    throw new \UnexpectedValueException("Value for placeholder $placeholder is an object that do not implement __tostring().");
-                    // throw php error and continue instead of throwing exception ?
                 }
 
                 $input = str_replace($placeholder, $value, $input);

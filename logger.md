@@ -22,6 +22,21 @@ use StdCmp\Log\Filters;
 use StdCmp\Log\Formatters;
 ```
 
+## Basic usage
+
+```
+$logger = new Logger("path/to/file.log");
+
+$logger->warning("something is somehow wrong");
+// add the following string to the specified log file
+// [2017-10-27 04:55:00]: warning (4): something is somehow wrong
+
+// let's say $user is an entity and it's nammed Florent
+$logger->error("User {name} did something terrible", ["name" => $user->name]);
+// [2017-10-27 04:55:00]: error (3): User Florent did something terrible
+```
+
+
 ## Logger
 
 To log an information, instantiate a logger and call the `log(int priority, string $message[, array context = []])` method.  
@@ -66,15 +81,17 @@ const PRORITY_NAMES = [
 ];
 ```
 
+The logger has a list of at least one writer, and optionally of processors and filters.
+
+
 ## Processor
 
 A processor can be any callable.
+It receive the record as single parameters.
+It is expected to modify any part of it, then to return it.
 
-It receive the record as single parameters and must returns it.
-It can modify any part of the record, but is often use to alter the message based on the content of the context array, or add information in the extra array.
-
-Processors are added to the logger via the `addProcessor(callable $processor)` method.    
-See also the `getProcessors()` and `setProcessors(array)` methods.
+Processors are added to the logger or a writer via the `addHelper(callable)` method.    
+See also the `getHelpers(): array` and `setHelpers(array)` methods.
 
 Ie:
 ```
@@ -84,27 +101,16 @@ $channelProcessor = function(array $record) {
     return $record;
 }
 
-// a simple way of processing placeholders/replacements described in the PSR-3 guideline.
-// note that a more flexible Placeholder processor class is provided, see below
-$psr3PlaceholdersProcessor = function(array $record) {
-    $replacements = [];
-    foreach ($record['context'] as $key => $val) {
-        $replacements['{'.$key.'}'] = (string) $val;
-    }
-    $record['message'] = strtr($record['message'], $replacements);
-    return $record;
-}
 ```
 
+### MessagePlaceholder processor
 
-### Placeholder processor
-
-The `Processors\Placeholder` class allow to replace placeholder in the log's message based on values found in the context array.
+The `Processors\MessagePlaceholder` class allow to replace placeholders in the log's message based on values found in the context array.
 
 The keys found in the message can be composite, using the dot notation and must be surounded by curly braces.
 Composite keys should match nested arrays in the context array.
 
-Any that has a place is discarded from the array.  
+For any match found, the value is replace in the string and the key discarded from the array.  
 Any key that has no equivalent in the context is left as-is.
 
 ```
@@ -120,21 +126,44 @@ $context = [
 "value - value2 - {unknown} - {un.known}"
 ```
 
-The values in the context array must be castable to string. They are discarded without error otherwise.
-It can also be a DateTime object. In that case you can set a particular format to print when creating the Placeholder instance. Default format is "";
+Values in the context array that are bjects that do not implement `__tostring()`, it is casted to array.
+
+Values in the context array that are arrays are encoded in JSON.
+
+### Datetime Processor
+
+The Datetime transform the value of the record's timestamp into a datetime.
+
+You may pass the desired format and or the timezone to the constructor, otherwise the default value of "Y-m-d H:i:s" and "UTC" will be used.
+
+
+## Filters
+
+Filters can be any callable.  
+They are passed the record as single parameters.  
+They must return false to prevent the logger or writer to process.
+
+When on the logger, returning false prevent subsequent processors or filters to be called and the log record to be written at all.
+When on the writter, returning false prevent only this writer to write, subsequent writer in the logger's queue are called.
+
+Ie a priority filter:
 
 ```
-$proc = new Processors\Placeholder([string $datetime_format]);
+// make the writer work only if the priority is critical, alert or emergency
+$priorityFilter = function(array $record) {
+    return $record["priority"] <= LOG_CRIT;
+    // Remember that the priorities' numerical values are in reverse order as one would naturally expect: the lower the number, the higher the importance.
+}
 ```
 
 
 ## Writers
 
-Writers can be any callable. Typically they are classes that implements the Interfaces\Writer (and that implements the `__invoke()` magic method) so that they can hold 0 or several filters and 0 or 1 formatter.
+Writers can be any callable. Typically they are classes that implements the Interfaces\Writer (and that implements the `__invoke()` magic method) so that they can, as the logger, hold processors and/or filtersas well as one formatter.
 
-Add filters via the `addFilter(callable $filter[, int position])` method.
+Add processors or filters via the `addHelper(callable $processorOrFilter)` method.
 
-Add a formatter via the `addFormatter(callable $formatter)` method. If no formatter is set when the writer needs to write the value, the `Formatter\Line` formatter will be used, with its default format.
+Add a formatter via the `setFormatter(callable $formatter)` method. If no formatter is set when the writer needs to write the value, the `Formatter\Line` formatter will be used, with its default format.
 
 Their goal is to write the record to a device (file, DB...). they receive the record as single argument and are not expected to return anything.
 
@@ -198,37 +227,18 @@ $writer = Writers\Syslog([string $ident = "", int $option = null, int $facility 
 ```
 
 
-## Filters
-
-Filters can be any callable.
-
-They are called before the writer works with the formatter.
-They are passed the record as single parameters.
-They must return true if the writer is allowed to work, false otherwise.
-Returning false prevent only this writer to write. If there are more writer queuing for this logger, other writers will be called.
-
-Ie a priority filter:
-
-Remember that the priorities' numerical values are in reverse order as one would naturally expect: the lower the number, the higher the importance. This will only be important when writing such priority filters.
-
-```
-// make the writer work only if the priority is critical, alert or emergency
-$priorityFilter = function(array $record) {
-    return ($record["priority"] <= LOG_CRIT);
-}
-```
 
 
 
 ## Formatters
 
-Formatters can be any callable.
+Formatters can be any callable.  
+They are passed the record as parameters.  
+They must return the data that will be handled by the Writer.  
 
-They are passed the record as parameters.
-They must return the data that will be handled by the Writer.
 
+### PlaceholderReplacer formatter
 
-### Line formatter
 
 The line formatter returns a single string.
 
@@ -265,4 +275,3 @@ $formatter = Formatters\PDO(PDO $pdo[, array $map]);
 ```
 
 It returns an array with two keys: "query" (string) and  "data" (array).
-

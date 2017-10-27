@@ -29,7 +29,7 @@ class Stream extends Writer
             // todo: needs to check if the whole path exists ?
             $resource = fopen($this->path, "a");
             if ($resource === false) {
-                throw new \UnexpectedValueException("Could not open path '$this->path'.");
+                throw new \InvalidArgumentException("Could not open path '$this->path'.");
             }
             $this->resource = $resource;
         }
@@ -37,19 +37,18 @@ class Stream extends Writer
 
     /**
      * @param array $record
+     * @return bool
      */
-    public function __invoke(array $record)
+    public function __invoke(array $record): bool
     {
-        // filter
-        foreach ($this->filters as $filter) {
-            if (!$filter($record)) {
-                return;
-            }
+        $record = $this->processHelpers($record);
+        if ($record === false) {
+            return true; // other writers may return false if they want other writers to run
         }
 
         // format
         if ($this->formatter === null) {
-            $this->formatter = new Formatters\Line();
+            $this->formatter = new Formatters\Text();
         }
 
         $formatter = $this->formatter;
@@ -63,5 +62,7 @@ class Stream extends Writer
             // only close the resource when we created it
             fclose($this->resource);
         }
+
+        return true;
     }
 }
