@@ -52,6 +52,7 @@ trait PlaceholderReplacement
                 }
 
                 $input = str_replace($placeholder, $value, $input);
+                unset($replacements[$key]);
             } elseif ($valueIsArray && !$valueIsEmpty) {
                 $input = $this->replacePlaceholders($input, $value, $fullKey);
             }

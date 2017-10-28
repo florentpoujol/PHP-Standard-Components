@@ -1,6 +1,6 @@
 <?php
 
-namespace StdCmp\Log\Processors;
+namespace StdCmp\Log\Helpers;
 
 use StdCmp\Log\Traits;
 

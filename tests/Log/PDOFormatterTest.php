@@ -17,16 +17,15 @@ class PDOFormatterTest extends TestCase
         ];
 
         $formatter = new Formatters\PDO();
-        $infos = $formatter($record);
+        $query = $formatter($record);
 
-        $expectedQuery = "(priority, priority_name, message, context, timestamp, extra) "
+        $expectedStmt = "(priority, priority_name, message, context, timestamp, extra) "
             . "VALUES (:priority, :priority_name, :message, :context, :timestamp, :extra)";
-        $this->assertEquals($expectedQuery, $infos["query"]);
+        $this->assertEquals($expectedStmt, $query["statement"]);
 
-        $data = $record;
-        $data["context"] = '{"some":"context"}';
-        $data["extra"] = '[]';
-        $this->assertEquals($data, $infos["data"]);
+        $record["context"] = '{"some":"context"}';
+        $record["extra"] = '[]';
+        $this->assertEquals($record, $query["params"]);
     }
 
     public function testWithMap()
@@ -47,14 +46,15 @@ class PDOFormatterTest extends TestCase
         ];
 
         $formatter = new Formatters\PDO($map);
-        $infos = $formatter($record);
+        $query = $formatter($record);
 
-        $expectedQuery = "(priority, thecontext) VALUES (:priority, :thecontext)";
-        $this->assertEquals($expectedQuery, $infos["query"]);
+        $expectedStmt = "(priority, thecontext) VALUES (:priority, :thecontext)";
+        $this->assertEquals($expectedStmt, $query["statement"]);
 
-        $data = [];
-        $data["priority"] = "emergency";
-        $data["thecontext"] = "context";
-        $this->assertEquals($data, $infos["data"]);
+        $params = [
+            "priority" => "emergency",
+            "thecontext" => "context",
+        ];
+        $this->assertEquals($params, $query["params"]);
     }
 }

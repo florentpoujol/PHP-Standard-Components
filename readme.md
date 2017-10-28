@@ -3,7 +3,7 @@
 This project aims to research and design basic standard components, that is a library that you find in practice in all major frameworks.
 
 Such components typically include:
-- [logger](logger.md)
+- [logger](doc/logger.md)
 - cache
 - routing
 - dependency container/injection

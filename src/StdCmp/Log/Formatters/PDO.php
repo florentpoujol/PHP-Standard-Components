@@ -2,14 +2,12 @@
 
 namespace StdCmp\Log\Formatters;
 
-
 class PDO
 {
     /**
      * @var array
      */
     protected $map;
-    protected $record;
 
     /**
      * @param array|null $map
@@ -34,41 +32,42 @@ class PDO
             }
 
             return [
-                "query" => $this->buildQuery($record),
-                "data" => $record
+                "statement" => $this->buildQuery($record),
+                "params" => $record
             ];
         }
 
-        $this->record = $record;
-        $data = [];
+        // a map has been supplied
+        $params = [];
 
         foreach ($this->map as $dbField => $recordKey) {
-            $value = $this->getRecordValue($recordKey);
+            $value = $this->getRecordValue($record, $recordKey); // recordKey may be composite like "part1.part2"
 
             if (is_array($value)) {
                 $value = json_encode($value);
             }
-            $data[$dbField] = $value;
+            $params[$dbField] = $value;
         }
 
         return [
-            "query" => $this->buildQuery($data),
-            "data" => $data,
+            "statement" => $this->buildQuery($params),
+            "params" => $params,
         ];
     }
 
     /**
+     * @param array $record
      * @param string $recordKey
      * @return mixed
      */
-    protected function getRecordValue(Text $recordKey)
+    protected function getRecordValue(array $record, string $recordKey)
     {
-        $keys = explode(".", $recordKey);
-        $value = $this->record;
+        $parts = explode(".", $recordKey);
+        $value = $record;
 
-        foreach ($keys as $key) {
-            if (isset($value[$key])) {
-                $value = $value[$key];
+        foreach ($parts as $part) {
+            if (isset($value[$part])) {
+                $value = $value[$part];
             } else {
                 return null;
             }
@@ -78,10 +77,13 @@ class PDO
     }
 
     /**
+     * Build part of a SQL INSERT query suitable to be passed to PDO::prepare(), from the supplied data.
+     * Ie: "(fieldName) VALUES (:fieldName)"
+     *
      * @param array $data
      * @return string
      */
-    protected function buildQuery(array $data): Text
+    protected function buildQuery(array $data): string
     {
         $fields = "";
         $values = "";
@@ -96,6 +98,4 @@ class PDO
 
         return "($fields) VALUES ($values)";
     }
-
-
 }

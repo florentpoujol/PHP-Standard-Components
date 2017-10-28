@@ -38,7 +38,7 @@ interface Logger extends Helpable
      *
      * @return void
      */
-    public function log(int $priority, string $message, array $context = array());
+    public function log(int $priority, string $message, array $context = []);
 
     /**
      * System is unusable.
@@ -48,7 +48,7 @@ interface Logger extends Helpable
      *
      * @return void
      */
-    public function emergency(string $message, array $context = array());
+    public function emergency(string $message, array $context = []);
 
     /**
      * Action must be taken immediately.
@@ -61,7 +61,7 @@ interface Logger extends Helpable
      *
      * @return void
      */
-    public function alert(string $message, array $context = array());
+    public function alert(string $message, array $context = []);
 
     /**
      * Critical conditions.
@@ -73,7 +73,7 @@ interface Logger extends Helpable
      *
      * @return void
      */
-    public function critical(string $message, array $context = array());
+    public function critical(string $message, array $context = []);
 
     /**
      * Runtime errors that do not require immediate action but should typically
@@ -84,7 +84,7 @@ interface Logger extends Helpable
      *
      * @return void
      */
-    public function error(string $message, array $context = array());
+    public function error(string $message, array $context = []);
 
     /**
      * Exceptional occurrences that are not errors.
@@ -97,7 +97,7 @@ interface Logger extends Helpable
      *
      * @return void
      */
-    public function warning(string $message, array $context = array());
+    public function warning(string $message, array $context = []);
 
     /**
      * Normal but significant events.
@@ -107,7 +107,7 @@ interface Logger extends Helpable
      *
      * @return void
      */
-    public function notice(string $message, array $context = array());
+    public function notice(string $message, array $context = []);
 
     /**
      * Interesting events.
@@ -119,7 +119,7 @@ interface Logger extends Helpable
      *
      * @return void
      */
-    public function info(string $message, array $context = array());
+    public function info(string $message, array $context = []);
 
     /**
      * Detailed debug information.
@@ -129,5 +129,5 @@ interface Logger extends Helpable
      *
      * @return void
      */
-    public function debug(string $message, array $context = array());
+    public function debug(string $message, array $context = []);
 }

@@ -11,10 +11,10 @@ class Text
     /**
      * @var string
      */
-    protected $text = "{timestamp}: {priority_name} ({priority}): {message} {context} {extra}\n";
+    protected $text = "{timestamp}: {priority_name} ({priority}): {message} {context}\n";
 
     /**
-     * @param string|null $text
+     * @param string|null $text The format of the string, with placeholders, to be returned to a writer.
      */
     public function __construct(string $text = null)
     {

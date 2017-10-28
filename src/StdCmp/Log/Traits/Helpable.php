@@ -10,11 +10,12 @@ trait Helpable
     protected $helpers = [];
 
     /**
-     * @param callable $processorOrFilter
+     * @param callable $helper
+     * @return void
      */
-    public function addHelper(callable $processorOrFilter)
+    public function addHelper(callable $helper)
     {
-        $this->helpers[] = $processorOrFilter;
+        $this->helpers[] = $helper;
     }
 
     /**
@@ -29,10 +30,10 @@ trait Helpable
      * @param callable[] $helpers
      * @return void
      */
-    public function setHelpers(array $processorsOrFilters)
+    public function setHelpers(array $helpers)
     {
         $this->helpers = [];
-        foreach ($processorsOrFilters as $id => $helper) {
+        foreach ($helpers as $id => $helper) {
             if (!is_callable($helper)) {
                 throw new \UnexpectedValueException("Processor or filter n°$id is a " . gettype($helper) . " instead of a callable.");
             }
@@ -57,7 +58,7 @@ trait Helpable
             $type = gettype($returnedValue);
             if ($type !== "boolean") {
                 if($type !== "array" || empty($returnedValue)) {
-                    throw new \UnexpectedValueException("Helper n°$key returned a value of type '$type' instead of array or an empty array.");
+                    throw new \UnexpectedValueException("Helper n°$key returned an empty array or a value of type '$type' instead of array.");
                 }
 
                 $record = $returnedValue;

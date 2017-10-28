@@ -1,6 +1,6 @@
 <?php
 
-namespace StdCmp\Log\Processors;
+namespace StdCmp\Log\Helpers;
 
 /**
  * Replace the record's timestamp by a formatted datetime (as a string)

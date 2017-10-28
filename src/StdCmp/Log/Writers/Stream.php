@@ -59,7 +59,7 @@ class Stream extends Writer
         fwrite($this->resource, $message);
 
         if ($this->path !== "") {
-            // only close the resource when we created it
+            // only close the resource if we created it
             fclose($this->resource);
         }
 

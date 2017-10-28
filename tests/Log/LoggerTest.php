@@ -43,15 +43,15 @@ class LoggerTest extends TestCase
         $logger = new Logger();
         $logger->addWriter(function(){});
 
-        $logger->addProcessor("namedFunction");
-        $logger->addProcessor(function($record) {
+        $logger->addHelper("namedFunction");
+        $logger->addHelper(function($record) {
             $record["anonymousFunction"] = true;
             return $record;
         });
-        $logger->addProcessor($this);
-        $logger->addProcessor([$this, "method"]);
-        $logger->addProcessor(["LoggerTest", "staticMethod"]);
-        $logger->addProcessor("LoggerTest::otherStaticMethod"); // save the record
+        $logger->addHelper($this);
+        $logger->addHelper([$this, "method"]);
+        $logger->addHelper(["LoggerTest", "staticMethod"]);
+        $logger->addHelper("LoggerTest::otherStaticMethod"); // save the record
 
         $logger->debug("all callable");
 

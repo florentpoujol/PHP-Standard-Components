@@ -1,9 +1,9 @@
 <?php
 
-use StdCmp\Log\Processors;
+use StdCmp\Log\Helpers;
 use PHPUnit\Framework\TestCase;
 
-class MessagePlaceholdersProcessorTest extends TestCase
+class MessagePlaceholdersHelpersTest extends TestCase
 {
     public function testMessagePlaceholdersReplacements()
     {
@@ -20,7 +20,7 @@ class MessagePlaceholdersProcessorTest extends TestCase
         $expected = $record;
         $expected["message"] = "User Florent has {done} stuff";
 
-        $proc = new Processors\MessagePlaceholders();
+        $proc = new Helpers\MessagePlaceholders();
         $record = $proc($record);
 
         $this->assertEquals($expected, $record);

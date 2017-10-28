@@ -51,6 +51,8 @@ class Logger implements Interfaces\Logger
     public function __construct(string $streamPath = null)
     {
         if ($streamPath !== null) {
+            $this->addHelper(new Helpers\Datetime());
+            $this->addHelper(new Helpers\MessagePlaceholders());
             $this->addWriter(new Writers\Stream($streamPath));
         }
     }
@@ -74,7 +76,6 @@ class Logger implements Interfaces\Logger
             "message" => $message,
             "context" => $context,
             "timestamp" => time(),
-            "extra" => [],
         ];
 
         $record = $this->processHelpers($record);
@@ -98,7 +99,7 @@ class Logger implements Interfaces\Logger
     /**
      * {@inheritDoc}
      */
-    public function emergency(string $message, array $context = array())
+    public function emergency(string $message, array $context = [])
     {
         $this->log(LOG_EMERG, $message, $context);
     }
@@ -106,7 +107,7 @@ class Logger implements Interfaces\Logger
     /**
      * {@inheritDoc}
      */
-    public function alert(string $message, array $context = array())
+    public function alert(string $message, array $context = [])
     {
         $this->log(LOG_ALERT, $message, $context);
     }
@@ -114,7 +115,7 @@ class Logger implements Interfaces\Logger
     /**
      * {@inheritDoc}
      */
-    public function critical(string $message, array $context = array())
+    public function critical(string $message, array $context = [])
     {
         $this->log(LOG_CRIT, $message, $context);
     }
@@ -122,7 +123,7 @@ class Logger implements Interfaces\Logger
     /**
      * {@inheritDoc}
      */
-    public function error(string $message, array $context = array())
+    public function error(string $message, array $context = [])
     {
         $this->log(LOG_ERR, $message, $context);
     }
@@ -130,7 +131,7 @@ class Logger implements Interfaces\Logger
     /**
      * {@inheritDoc}
      */
-    public function warning(string $message, array $context = array())
+    public function warning(string $message, array $context = [])
     {
         $this->log(LOG_WARNING, $message, $context);
     }
@@ -138,7 +139,7 @@ class Logger implements Interfaces\Logger
     /**
      * {@inheritDoc}
      */
-    public function notice(string $message, array $context = array())
+    public function notice(string $message, array $context = [])
     {
         $this->log(LOG_NOTICE, $message, $context);
     }
@@ -146,7 +147,7 @@ class Logger implements Interfaces\Logger
     /**
      * {@inheritDoc}
      */
-    public function info(string $message, array $context = array())
+    public function info(string $message, array $context = [])
     {
         $this->log(LOG_INFO, $message, $context);
     }
@@ -154,7 +155,7 @@ class Logger implements Interfaces\Logger
     /**
      * {@inheritDoc}
      */
-    public function debug(string $message, array $context = array())
+    public function debug(string $message, array $context = [])
     {
         $this->log(LOG_DEBUG, $message, $context);
     }
