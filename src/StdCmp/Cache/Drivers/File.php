@@ -40,17 +40,6 @@ class File
     /**
      * {@inheritdoc}
      */
-    public function getMultiple(array $keys, $defaultValue = null): array
-    {
-        // loop through key
-            // call get()
-            // add key/value to returned array
-        // return array
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function set(string $key, $value, $ttl)
     {
         // validate key
@@ -58,15 +47,6 @@ class File
         // write file
             // exception if can not write
         // touch with expiration date
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function setMultiple(array $values, $ttl)
-    {
-        // loop through key
-            // call set()
     }
 
     /**
@@ -85,32 +65,12 @@ class File
     /**
      * {@inheritdoc}
      */
-    public function hasMultiple(array $keys): array
-    {
-        // loop through keys
-            // if has()
-                // add key to hasKeys
-        // return hasKeys
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function delete(string $key)
     {
         // validate key
         // get path
         // if fil_exists
             // unlink
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function deleteMultiple(array $keys)
-    {
-        // loop through keys
-            // call delete
     }
 
     /**

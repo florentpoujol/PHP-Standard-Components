@@ -23,24 +23,6 @@ interface ItemPool
     public function getItem(string $key);
 
     /**
-     * Returns a traversable set of cache items.
-     *
-     * @param string[] $keys
-     *   An indexed array of keys of items to retrieve.
-     *
-     * @throws InvalidArgumentException
-     *   If any of the keys in $keys are not a legal value a \Psr\Cache\InvalidArgumentException
-     *   MUST be thrown.
-     *
-     * @return array|\Traversable
-     *   A traversable collection of Cache Items keyed by the cache keys of
-     *   each item. A Cache item will be returned for each key, even if that
-     *   key is not found. However, if no keys are specified then an empty
-     *   traversable MUST be returned instead.
-     */
-    public function getItems(array $keys): array;
-
-    /**
      * Confirms if the cache contains specified cache item.
      *
      * Note: This method MAY avoid retrieving the cached value for performance reasons.
@@ -58,7 +40,6 @@ interface ItemPool
      *   True if item exists in the cache, false otherwise.
      */
     public function hasItem(string $key): bool;
-    public function hasItems(array $keys): array;
 
     /**
      * Deletes all items in the pool.
@@ -82,21 +63,6 @@ interface ItemPool
      *   True if the item was successfully removed. False if there was an error.
      */
     public function deleteItem($key);
-
-    /**
-     * Removes multiple items from the pool.
-     *
-     * @param string[] $keys
-     *   An array of keys that should be removed from the pool.
-
-     * @throws InvalidArgumentException
-     *   If any of the keys in $keys are not a legal value a \Psr\Cache\InvalidArgumentException
-     *   MUST be thrown.
-     *
-     * @return bool
-     *   True if the items were successfully removed. False if there was an error.
-     */
-    public function deleteItems(array $keys);
 
     /**
      * Persists a cache item immediately.
