@@ -35,9 +35,6 @@ class Item implements Interfaces\Item
             $time = time();
             $datetime = new \DateTime();
 
-            // set default ttl
-            // $datetime->setTimestamp($time + ???);
-
             if (is_int($expire)) {
                 if ($expire < $time) {
                     // expire is a ttl
@@ -83,14 +80,10 @@ class Item implements Interfaces\Item
     }
 
     /**
-     * @param mixed $defaultValue
      * @return mixed
      */
-    public function get($defaultValue = null)
+    public function get()
     {
-        if ($defaultValue !== null && !$this->isHit) {
-            return $defaultValue;
-        }
         return $this->value;
     }
 
@@ -104,6 +97,7 @@ class Item implements Interfaces\Item
 
     /**
      * @param int|\DateTime $time
+     * @return \DateTime
      */
     public function expireAt($time)
     {
@@ -113,6 +107,7 @@ class Item implements Interfaces\Item
             $time->setTimestamp($timestamp);
         }
         $this->expirationDatetime = $time;
+        return $this->expirationDatetime;
     }
 
     /**

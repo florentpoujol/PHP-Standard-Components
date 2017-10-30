@@ -28,10 +28,9 @@ interface Item
     public function setKey(string $key);
 
     /**
-     * @param mixed $defaultValue
      * @return mixed
      */
-    public function get($defaultValue = null);
+    public function get();
 
     /**
      * @param mixed $value

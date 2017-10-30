@@ -2,18 +2,10 @@
 
 namespace StdCmp\Cache;
 
-use StdCmp\Cache\Interfaces;
-
-class Cache implements Interfaces\Driver
+class Chain implements Interfaces\SimpleCache
 {
     /**
-     * @var Item[]
-     */
-    protected $savedItems = [];
-    protected $deferedItems = [];
-
-    /**
-     * @var Interfaces\Driver[]
+     * @var Interfaces\SimpleCache[]
      */
     protected $drivers = [];
 
@@ -38,33 +30,26 @@ class Cache implements Interfaces\Driver
     /**
      * {@inheritdoc}
      */
-    public function set(string $key, $value, $ttl)
+    public function set(string $key, $value, $ttl = null)
     {
         foreach ($this->drivers as $driver) {
             $driver->set($key, $value, $ttl);
         }
     }
 
-
-    // common
-
     /**
      * {@inheritdoc}
      */
     public function has(string $key): bool
     {
-        $has = isset($this->savedItems[$key]) || isset($this->deferedItems[$key]);
-
-        if (!$has) {
-            foreach ($this->drivers as $driver) {
-                $has = $driver->has($key);
-                if ($has) {
-                    break;
-                }
+        foreach ($this->drivers as $driver) {
+            $has = $driver->has($key);
+            if ($has) {
+                return true;
             }
         }
 
-        return $has;
+        return false;
     }
 
     /**
@@ -88,15 +73,15 @@ class Cache implements Interfaces\Driver
     }
 
     /**
-     * @param Interfaces\Driver $driver
+     * @param Interfaces\SimpleCache $driver
      */
-    public function addDriver(Interfaces\Driver $driver)
+    public function addDriver(Interfaces\SimpleCache $driver)
     {
         $this->drivers[] = $driver;
     }
 
     /**
-     * @return Interfaces\Driver[]
+     * @return Interfaces\SimpleCache[]
      */
     public function getDrivers(): array
     {
@@ -104,13 +89,13 @@ class Cache implements Interfaces\Driver
     }
 
     /**
-     * @param Interfaces\Driver[] $drivers
+     * @param Interfaces\SimpleCache[] $drivers
      */
     public function setDrivers(array $drivers)
     {
         $this->drivers = [];
         foreach ($drivers as $driver) {
-            if (!($driver instanceof Interfaces\Driver)) {
+            if (!($driver instanceof Interfaces\SimpleCache)) {
                 throw new \UnexpectedValueException("Bad Driver");
             }
             $this->drivers[] = $drivers;

@@ -3,7 +3,7 @@
 namespace StdCmp\Cache\Interfaces;
 
 // PSR-16 SimplCache
-interface Driver
+interface SimpleCache
 {
     /**
      * @param string $key
@@ -15,10 +15,10 @@ interface Driver
     /**
      * @param string $key
      * @param mixed $value
-     * @param int|\DateInterval $ttl
+     * @param int|\DateInterval|null $ttl
      * @return void
      */
-    public function set(string $key, $value, $ttl);
+    public function set(string $key, $value, $ttl = null);
 
     /**
      * @param string $key
