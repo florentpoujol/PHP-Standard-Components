@@ -26,6 +26,9 @@ class Item implements Interfaces\Item
      */
     protected $isHit = false;
 
+    /**
+     * {@inheritdoc}
+     */
     public function __construct(string $key = null, $value = null, $expire = null)
     {
         $this->key = $key;
@@ -52,8 +55,7 @@ class Item implements Interfaces\Item
     }
 
     /**
-     * @param bool|null $isHit
-     * @return bool
+     * {@inheritdoc}
      */
     public function isHit(bool $isHit = null): bool
     {
@@ -99,14 +101,16 @@ class Item implements Interfaces\Item
      * @param int|\DateTime $time
      * @return \DateTime
      */
-    public function expireAt($time)
+    public function expireAt($time = null)
     {
-        if (is_int($time)) {
-            $timestamp = $time;
-            $time = new \DateTime();
-            $time->setTimestamp($timestamp);
+        if ($time !== null) {
+            if (is_int($time)) {
+                $timestamp = $time;
+                $time = new \DateTime();
+                $time->setTimestamp($timestamp);
+            }
+            $this->expirationDatetime = $time;
         }
-        $this->expirationDatetime = $time;
         return $this->expirationDatetime;
     }
 

@@ -4,17 +4,23 @@ namespace Cache;
 
 use StdCmp\Cache\File;
 use PHPUnit\Framework\TestCase;
+use StdCmp\Cache\Item;
 
 class FileTest extends TestCase
 {
     protected static $sDirPath = "/tmp/testStdCmp/";
     protected $dirPath;
+    /**
+     * @var File
+     */
+    protected $cache;
 
     public function __construct($name = null, array $data = [], $dataName = '')
     {
         parent::__construct($name, $data, $dataName);
 
         $this->dirPath = self::$sDirPath;
+        $this->cache = new File($this->dirPath);
     }
 
     public static function setUpBeforeClass()
@@ -213,6 +219,113 @@ class FileTest extends TestCase
             }
         }
         $this->assertEmpty($files);
+    }
+
+    public function testSetItem()
+    {
+        $this->cache->setItem(new Item("item_int", 123));
+        $this->cache->setItem(new Item("item_float", 12.3));
+        $this->cache->setItem(new Item("item_string", "a string"));
+        $this->cache->setItem(new Item("item_bool", false));
+        $this->cache->setItem(new Item("item_callable", "FileTest::setUpBeforeClass"));
+        $this->cache->setItem(new Item("item_object", $this->cache));
+        $this->cache->setItem(new Item("item_array", ["zero", "one" => "one"]));
+
+        $this->assertFileExists($this->dirPath . "item_int");
+        $this->assertFileExists($this->dirPath . "item_float");
+        $this->assertFileExists($this->dirPath . "item_string");
+        $this->assertFileExists($this->dirPath . "item_bool");
+        $this->assertFileExists($this->dirPath . "item_callable");
+        $this->assertFileExists($this->dirPath . "item_object");
+        $this->assertFileExists($this->dirPath . "item_array");
+
+        $this->assertEquals(123, $this->cache->get("item_int"));
+        $this->assertEquals(12.3, $this->cache->get("item_float"));
+        $this->assertEquals("a string", $this->cache->get("item_string"));
+        $this->assertEquals(false, $this->cache->get("item_bool"));
+        $this->assertEquals("FileTest::setUpBeforeClass", $this->cache->get("item_callable"));
+        $this->assertEquals($this->cache, $this->cache->get("item_object"));
+        $this->assertEquals(["one" => "one", "zero"], $this->cache->get("item_array"));
+
+        // now with expiration
+        $this->cache->setItem(new Item("item_int", 1234, 123)); // ttl
+        $this->cache->setItem(new Item("item_float", 12.34, new \DateTime("+ 456 seconds")));
+        $this->cache->setItem(new Item("item_string", "yet another value", new \DateTime("- 456 seconds"))); // - 456 seconds to set the expiration in the past
+
+        $this->assertEquals(time() + 123, filemtime($this->dirPath . "item_int"));
+        $this->assertEquals(time() + 456, filemtime($this->dirPath . "item_float"));
+    }
+
+    public function getItem()
+    {
+        $item = $this->cache->getItem("item_int");
+        $this->assertInstanceOf(Item::class, $item);
+        $this->assertEquals("item_int", $item->getKey());
+        $this->assertEquals(1234, $item->get());
+        $this->assertEquals(true, $item->isHit());
+        $this->assertEquals(time() + 123, $item->expireAt()->getTimestamp());
+
+        $item = $this->cache->getItem("item_float");
+        $this->assertInstanceOf(Item::class, $item);
+        $this->assertEquals("item_float", $item->getKey());
+        $this->assertEquals(12.34, $item->get());
+        $this->assertEquals(true, $item->isHit());
+        $this->assertEquals(time() + 456, $item->expireAt()->getTimestamp());
+
+        // exists by expired
+        $this->assertFileExists($this->dirPath . "item_string");
+
+        $item = $this->cache->getItem("item_string");
+        $this->assertInstanceOf(Item::class, $item);
+        $this->assertEquals("item_string", $item->getKey());
+        $this->assertEquals(null, $item->get());
+        $this->assertEquals(false, $item->isHit());
+        $this->assertEquals(null, $item->expireAt());
+
+        // non existant
+        $item = $this->cache->getItem("item_non_existant");
+        $this->assertInstanceOf(Item::class, $item);
+        $this->assertEquals("item_non_existant", $item->getKey());
+        $this->assertEquals(null, $item->get());
+        $this->assertEquals(false, $item->isHit());
+        $this->assertEquals(null, $item->expireAt());
+    }
+
+    public function testSaveDefered()
+    {
+        $this->cache->setItemDeferred(new Item("itemdef_int", 12345));
+        $this->cache->setItemDeferred(new Item("itemdef_float", 12.345));
+        $this->cache->setItemDeferred(new Item("itemdef_string", "a defered string"));
+        $this->cache->setItemDeferred(new Item("itemdef_bool", true));
+        $this->cache->setItemDeferred(new Item("itemdef_callable", "FileTest::setUpBeforeClass"));
+        $this->cache->setItemDeferred(new Item("itemdef_object", new Item("key", "value")));
+        $this->cache->setItemDeferred(new Item("itemdef_array", ["zero", "one" => "defered"]));
+
+        $this->assertFileNotExists($this->dirPath . "itemdef_int");
+        $this->assertFileNotExists($this->dirPath . "itemdef_float");
+        $this->assertFileNotExists($this->dirPath . "itemdef_string");
+        $this->assertFileNotExists($this->dirPath . "itemdef_bool");
+        $this->assertFileNotExists($this->dirPath . "itemdef_callable");
+        $this->assertFileNotExists($this->dirPath . "itemdef_object");
+        $this->assertFileNotExists($this->dirPath . "itemdef_array");
+
+        $this->cache->commit();
+
+        $this->assertFileExists($this->dirPath . "itemdef_int");
+        $this->assertFileExists($this->dirPath . "itemdef_float");
+        $this->assertFileExists($this->dirPath . "itemdef_string");
+        $this->assertFileExists($this->dirPath . "itemdef_bool");
+        $this->assertFileExists($this->dirPath . "itemdef_callable");
+        $this->assertFileExists($this->dirPath . "itemdef_object");
+        $this->assertFileExists($this->dirPath . "itemdef_array");
+
+        $this->assertEquals(12345, $this->cache->get("itemdef_int"));
+        $this->assertEquals(12.345, $this->cache->get("itemdef_float"));
+        $this->assertEquals("a defered string", $this->cache->get("itemdef_string"));
+        $this->assertEquals(true, $this->cache->get("itemdef_bool"));
+        $this->assertEquals("FileTest::setUpBeforeClass", $this->cache->get("itemdef_callable"));
+        $this->assertEquals(new Item("key", "value"), $this->cache->get("itemdef_object"));
+        $this->assertEquals(["one" => "defered", "zero"], $this->cache->get("itemdef_array"));
     }
 
 }

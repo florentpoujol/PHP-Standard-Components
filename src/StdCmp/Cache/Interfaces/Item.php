@@ -11,6 +11,13 @@ namespace StdCmp\Cache\Interfaces;
 interface Item
 {
     /**
+     * @param string|null $key
+     * @param mixed|null $value
+     * @param int|\DateTime|\DateInterval|null $expire
+     */
+    public function __construct(string $key = null, $value = null, $expire = null);
+
+    /**
      * @param bool|null $isHit
      * @return bool
      */

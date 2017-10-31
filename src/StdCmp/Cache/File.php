@@ -2,7 +2,7 @@
 
 namespace StdCmp\Cache;
 
-class File implements Interfaces\SimpleCache
+class File implements Interfaces\SimpleCache, Interfaces\ItemPool
 {
     /**
      * @var string
@@ -12,7 +12,12 @@ class File implements Interfaces\SimpleCache
     /**
      * @var int
      */
-    private $defaultTTL = 31536000; // 1 year
+    protected $defaultTTL = 31536000; // 1 year
+
+    /**
+     * @var File[]
+     */
+    protected $items = [];
 
     /**
      * @param string $dirPath
@@ -58,18 +63,92 @@ class File implements Interfaces\SimpleCache
     /**
      * {@inheritdoc}
      */
-    public function set(string $key, $value, $ttl = null)
+    public function getItem(string $key): Item
+    {
+        $path = $this->validateKey($key);
+        $item = new Item($key);
+
+        if ($this->has($key)) {
+            $item->set($this->get($key));
+            $item->isHit(true);
+            $item->expireAt(filemtime($path));
+        }
+
+        return $item;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function set(string $key, $value, $ttl = null): bool
     {
         $path = $this->validateKey($key);
 
-        file_put_contents($path, serialize($value) );
+        $success = file_put_contents($path, serialize($value) );
+        if (!$success) {
+            return false;
+        }
 
         if ($ttl === null) {
             $ttl = $this->defaultTTL;
         } elseif($ttl instanceof \DateInterval) {
             $ttl = (int)$ttl->format("%s");
         }
-        touch($path, time() + $ttl);
+        $success = touch($path, time() + $ttl);
+        return $success;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function setItem(Item $item): bool
+    {
+        $ttl = null;
+        $dt = $item->expireAt();
+        if ($dt !== null) {
+            $ttl = $dt->getTimestamp() - time();
+        }
+
+        return $this->set($item->getKey(), $item->get(), $ttl);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function setItemDeferred(Item $item): bool
+    {
+        $key = $item->getKey();
+        $path = $this->validateKey($key);
+
+        $ttl = $this->defaultTTL;
+        $dt = $item->expireAt();
+        if ($dt !== null) {
+            $ttl = $dt->getTimestamp() - time();
+        }
+
+        $this->items[$key] = [
+            "value" => serialize( $item->get() ),
+            "path" => $path,
+            "ttl" => $ttl
+        ];
+        return true;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function commit(): bool
+    {
+        $time = time();
+
+        foreach ($this->items as $key => $item) {
+            $path = $item["path"];
+
+            file_put_contents($path, $item["value"]);
+            touch($path, $time + $item["ttl"]);
+        }
+
+        return true;
     }
 
     /**
@@ -84,21 +163,22 @@ class File implements Interfaces\SimpleCache
     /**
      * {@inheritdoc}
      */
-    public function delete(string $key)
+    public function delete(string $key): bool
     {
         $path = $this->validateKey($key);
         if (file_exists($path)) {
-            unlink($path);
+            return unlink($path);
         }
+        return false;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function clear()
+    public function clear(): bool
     {
         $this->deleteDir($this->dirPath);
-        mkdir($this->dirPath, 0777, true);
+        return mkdir($this->dirPath, 0777, true); // will return false is dir exists, meaning that deleteDir() has had an issue
     }
 
     protected function deleteDir(string $basePath = null)

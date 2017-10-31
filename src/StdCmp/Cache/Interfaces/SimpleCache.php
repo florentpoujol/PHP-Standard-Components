@@ -16,9 +16,9 @@ interface SimpleCache
      * @param string $key
      * @param mixed $value
      * @param int|\DateInterval|null $ttl
-     * @return void
+     * @return bool
      */
-    public function set(string $key, $value, $ttl = null);
+    public function set(string $key, $value, $ttl = null): bool;
 
     /**
      * @param string $key
@@ -28,12 +28,12 @@ interface SimpleCache
 
     /**
      * @param string $key
-     * @return void
+     * @return bool
      */
-    public function delete(string $key);
+    public function delete(string $key): bool;
 
     /**
-     * @return void
+     * @return bool
      */
-    public function clear();
+    public function clear(): bool;
 }
