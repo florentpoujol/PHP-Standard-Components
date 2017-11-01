@@ -13,16 +13,22 @@ interface ItemPool
     public function getItem(string $key): Item;
 
     /**
-     * @param Item $item
-     * @return mixed
+     * @param string[] $keys
+     * @return array
      */
-    public function setItem(Item $item): bool;
+    public function getItems(array $keys): array;
 
     /**
      * @param Item $item
      * @return mixed
      */
-    public function setItemDeferred(Item $item);
+    public function save(Item $item): bool;
+
+    /**
+     * @param Item $item
+     * @return mixed
+     */
+    public function saveDeferred(Item $item);
 
     /**
      * @return bool

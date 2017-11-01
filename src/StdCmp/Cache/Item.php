@@ -82,10 +82,14 @@ class Item implements Interfaces\Item
     }
 
     /**
+     * @param mixed|null $defaultValue
      * @return mixed
      */
-    public function get()
+    public function get($defaultValue = null)
     {
+        if ($defaultValue !== null && !$this->isHit()) {
+            return $defaultValue;
+        }
         return $this->value;
     }
 

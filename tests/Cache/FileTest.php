@@ -223,13 +223,13 @@ class FileTest extends TestCase
 
     public function testSetItem()
     {
-        $this->cache->setItem(new Item("item_int", 123));
-        $this->cache->setItem(new Item("item_float", 12.3));
-        $this->cache->setItem(new Item("item_string", "a string"));
-        $this->cache->setItem(new Item("item_bool", false));
-        $this->cache->setItem(new Item("item_callable", "FileTest::setUpBeforeClass"));
-        $this->cache->setItem(new Item("item_object", $this->cache));
-        $this->cache->setItem(new Item("item_array", ["zero", "one" => "one"]));
+        $this->cache->save(new Item("item_int", 123));
+        $this->cache->save(new Item("item_float", 12.3));
+        $this->cache->save(new Item("item_string", "a string"));
+        $this->cache->save(new Item("item_bool", false));
+        $this->cache->save(new Item("item_callable", "FileTest::setUpBeforeClass"));
+        $this->cache->save(new Item("item_object", $this->cache));
+        $this->cache->save(new Item("item_array", ["zero", "one" => "one"]));
 
         $this->assertFileExists($this->dirPath . "item_int");
         $this->assertFileExists($this->dirPath . "item_float");
@@ -248,9 +248,9 @@ class FileTest extends TestCase
         $this->assertEquals(["one" => "one", "zero"], $this->cache->get("item_array"));
 
         // now with expiration
-        $this->cache->setItem(new Item("item_int", 1234, 123)); // ttl
-        $this->cache->setItem(new Item("item_float", 12.34, new \DateTime("+ 456 seconds")));
-        $this->cache->setItem(new Item("item_string", "yet another value", new \DateTime("- 456 seconds"))); // - 456 seconds to set the expiration in the past
+        $this->cache->save(new Item("item_int", 1234, 123)); // ttl
+        $this->cache->save(new Item("item_float", 12.34, new \DateTime("+ 456 seconds")));
+        $this->cache->save(new Item("item_string", "yet another value", new \DateTime("- 456 seconds"))); // - 456 seconds to set the expiration in the past
 
         $this->assertEquals(time() + 123, filemtime($this->dirPath . "item_int"));
         $this->assertEquals(time() + 456, filemtime($this->dirPath . "item_float"));
@@ -269,10 +269,11 @@ class FileTest extends TestCase
         $this->assertInstanceOf(Item::class, $item);
         $this->assertEquals("item_float", $item->getKey());
         $this->assertEquals(12.34, $item->get());
+        $this->assertEquals(12.34, $item->get(34.12)); // default value ignored
         $this->assertEquals(true, $item->isHit());
         $this->assertEquals(time() + 456, $item->expireAt()->getTimestamp());
 
-        // exists by expired
+        // exists but expired
         $this->assertFileExists($this->dirPath . "item_string");
 
         $item = $this->cache->getItem("item_string");
@@ -291,15 +292,38 @@ class FileTest extends TestCase
         $this->assertEquals(null, $item->expireAt());
     }
 
+    public function testGetItems()
+    {
+        $keys = [
+            "item_int",
+            "item_float",
+            "item_string", // file exists but has expired
+            "item_non_existant"
+        ];
+
+        $values = $this->cache->getItems($keys);
+
+        $this->assertArrayHasKey("item_int", $values);
+        $this->assertArrayHasKey("item_float", $values);
+        $this->assertArrayHasKey("item_string", $values);
+        $this->assertArrayHasKey("item_non_existant", $values);
+
+        $this->assertEquals(1234, $values["item_int"]->get());
+        $this->assertEquals(12.34, $values["item_float"]->get());
+        $this->assertEquals(null, $values["item_string"]->get());
+        $this->assertEquals("the default value", $values["item_string"]->get("the default value"));
+        $this->assertEquals(null, $values["item_non_existant"]->get());
+    }
+
     public function testSaveDefered()
     {
-        $this->cache->setItemDeferred(new Item("itemdef_int", 12345));
-        $this->cache->setItemDeferred(new Item("itemdef_float", 12.345));
-        $this->cache->setItemDeferred(new Item("itemdef_string", "a defered string"));
-        $this->cache->setItemDeferred(new Item("itemdef_bool", true));
-        $this->cache->setItemDeferred(new Item("itemdef_callable", "FileTest::setUpBeforeClass"));
-        $this->cache->setItemDeferred(new Item("itemdef_object", new Item("key", "value")));
-        $this->cache->setItemDeferred(new Item("itemdef_array", ["zero", "one" => "defered"]));
+        $this->cache->saveDeferred(new Item("itemdef_int", 12345));
+        $this->cache->saveDeferred(new Item("itemdef_float", 12.345));
+        $this->cache->saveDeferred(new Item("itemdef_string", "a defered string"));
+        $this->cache->saveDeferred(new Item("itemdef_bool", true));
+        $this->cache->saveDeferred(new Item("itemdef_callable", "FileTest::setUpBeforeClass"));
+        $this->cache->saveDeferred(new Item("itemdef_object", new Item("key", "value")));
+        $this->cache->saveDeferred(new Item("itemdef_array", ["zero", "one" => "defered"]));
 
         $this->assertFileNotExists($this->dirPath . "itemdef_int");
         $this->assertFileNotExists($this->dirPath . "itemdef_float");
@@ -327,5 +351,74 @@ class FileTest extends TestCase
         $this->assertEquals(new Item("key", "value"), $this->cache->get("itemdef_object"));
         $this->assertEquals(["one" => "defered", "zero"], $this->cache->get("itemdef_array"));
     }
+
+    public function testSetMultiple()
+    {
+        $this->cache->clear();
+
+        $values = [
+            "int_multiple" => 789,
+            "float_multiple" => 789.456,
+            "string_multiple" => "a multiple string",
+        ];
+
+        $this->assertFileNotExists($this->dirPath . "int_multiple");
+        $this->assertFileNotExists($this->dirPath . "float_multiple");
+        $this->assertFileNotExists($this->dirPath . "string_multiple");
+        $this->assertFileNotExists($this->dirPath . "non_existant_key");
+
+        $this->cache->setMultiple($values);
+
+        $this->assertFileExists($this->dirPath . "int_multiple");
+        $this->assertFileExists($this->dirPath . "float_multiple");
+        $this->assertFileExists($this->dirPath . "string_multiple");
+        $this->assertFileNotExists($this->dirPath . "non_existant_key");
+
+    }
+
+    public function testGetMultiple()
+    {
+        $keys = [
+            "int_multiple",
+            "float_multiple",
+            "string_multiple",
+            "non_existant_key"
+        ];
+
+        $values = $this->cache->getMultiple($keys);
+
+        $this->assertArrayHasKey("int_multiple", $values);
+        $this->assertArrayHasKey("float_multiple", $values);
+        $this->assertArrayHasKey("string_multiple", $values);
+        $this->assertArrayHasKey("non_existant_key", $values);
+
+        $this->assertEquals(789, $values["int_multiple"]);
+        $this->assertEquals(789.456, $values["float_multiple"]);
+        $this->assertEquals("a multiple string", $values["string_multiple"]);
+        $this->assertEquals(null, $values["non_existant_key"]);
+    }
+
+    public function testDeleteMultiple()
+    {
+        $keys = [
+            "int_multiple",
+            "float_multiple",
+            "string_multiple",
+            "non_existant_key"
+        ];
+
+        $this->assertFileExists($this->dirPath . "int_multiple");
+        $this->assertFileExists($this->dirPath . "float_multiple");
+        $this->assertFileExists($this->dirPath . "string_multiple");
+        $this->assertFileNotExists($this->dirPath . "non_existant_key");
+
+        $values = $this->cache->deleteMultiple($keys);
+
+        $this->assertFileNotExists($this->dirPath . "int_multiple");
+        $this->assertFileNotExists($this->dirPath . "float_multiple");
+        $this->assertFileNotExists($this->dirPath . "string_multiple");
+        $this->assertFileNotExists($this->dirPath . "non_existant_key");
+    }
+
 
 }

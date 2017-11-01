@@ -63,6 +63,18 @@ class File implements Interfaces\SimpleCache, Interfaces\ItemPool
     /**
      * {@inheritdoc}
      */
+    public function getMultiple(array $keys, $defaultValue = null): array
+    {
+        $values = [];
+        foreach ($keys as $key) {
+            $values[$key] = $this->get($key, $defaultValue);
+        }
+        return $values;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function getItem(string $key): Item
     {
         $path = $this->validateKey($key);
@@ -75,6 +87,18 @@ class File implements Interfaces\SimpleCache, Interfaces\ItemPool
         }
 
         return $item;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getItems(array $keys): array
+    {
+        $values = [];
+        foreach ($keys as $key) {
+            $values[$key] = $this->getItem($key);
+        }
+        return $values;
     }
 
     /**
@@ -101,7 +125,18 @@ class File implements Interfaces\SimpleCache, Interfaces\ItemPool
     /**
      * {@inheritdoc}
      */
-    public function setItem(Item $item): bool
+    public function setMultiple(array $values, $ttl = null): bool
+    {
+        foreach ($values as $key => $value) {
+            $this->set($key, $value, $ttl);
+        }
+        return true;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function save(Item $item): bool
     {
         $ttl = null;
         $dt = $item->expireAt();
@@ -115,7 +150,7 @@ class File implements Interfaces\SimpleCache, Interfaces\ItemPool
     /**
      * {@inheritdoc}
      */
-    public function setItemDeferred(Item $item): bool
+    public function saveDeferred(Item $item): bool
     {
         $key = $item->getKey();
         $path = $this->validateKey($key);
@@ -170,6 +205,15 @@ class File implements Interfaces\SimpleCache, Interfaces\ItemPool
             return unlink($path);
         }
         return false;
+    }
+
+    public function deleteMultiple(array $keys): bool
+    {
+        $success = true;
+        foreach ($keys as $key) {
+            $success = $this->delete($key) && $success;
+        }
+        return $success; // returns false if any of the delete call has returned false
     }
 
     /**
