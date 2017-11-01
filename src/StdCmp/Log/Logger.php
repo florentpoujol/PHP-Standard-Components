@@ -6,7 +6,7 @@ use StdCmp\Log\Traits;
 
 class Logger implements Interfaces\Logger
 {
-    use Traits\Helpable;
+    use Traits\Helper;
 
     /**
      * @var callable[]

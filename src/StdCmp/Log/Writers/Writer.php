@@ -7,7 +7,7 @@ use StdCmp\Log\Traits;
 
 abstract class Writer implements Interfaces\Writer
 {
-    use Traits\Helpable;
+    use Traits\Helper;
 
     /**
      * @var callable

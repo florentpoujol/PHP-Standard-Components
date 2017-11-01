@@ -2,7 +2,7 @@
 
 namespace StdCmp\Log\Interfaces;
 
-interface Logger extends Helpable
+interface Logger extends HelperAware
 {
     /**
      * @var string[]

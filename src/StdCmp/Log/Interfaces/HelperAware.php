@@ -2,7 +2,7 @@
 
 namespace StdCmp\Log\Interfaces;
 
-interface Helpable
+interface HelperAware
 {
     /**
      * @param callable $helper

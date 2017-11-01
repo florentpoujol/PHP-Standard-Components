@@ -24,12 +24,25 @@ class Stream extends Writer
         if (is_resource($descriptor)) {
             $this->resource = $descriptor;
         } else {
+            $path = str_replace("file://", "", $descriptor);
+            if (strpos($path, "://") === false) { // $path is actual file path
+                $path = realpath($path);
+                if ($path === false) {
+                    throw new \InvalidArgumentException("Could not get realpath of the provided path '$descriptor'");
+                }
+
+                $dirname = dirname($path);
+                if (!file_exists($dirname)) {
+                    mkdir($dirname, 0777, true);
+                }
+                $descriptor = $path;
+            }
+
             $this->path = $descriptor;
 
-            // todo: needs to check if the whole path exists ?
             $resource = fopen($this->path, "a");
             if ($resource === false) {
-                throw new \InvalidArgumentException("Could not open path '$this->path'.");
+                throw new \InvalidArgumentException("Could not open stream at path '$this->path'.");
             }
             $this->resource = $resource;
         }

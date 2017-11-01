@@ -2,7 +2,7 @@
 
 namespace StdCmp\Log\Traits;
 
-trait Helpable
+trait Helper
 {
     /**
      * @var callable[] Processors and/or filters

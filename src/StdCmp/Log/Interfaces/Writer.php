@@ -2,7 +2,7 @@
 
 namespace StdCmp\Log\Interfaces;
 
-interface Writer extends Helpable
+interface Writer extends HelperAware
 {
     /**
      * @param callable $formatter
