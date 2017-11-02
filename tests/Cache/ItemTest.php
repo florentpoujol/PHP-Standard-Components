@@ -2,14 +2,14 @@
 
 namespace Cache;
 
-use StdCmp\Cache\Item;
+use StdCmp\Cache\CacheItem;
 use PHPUnit\Framework\TestCase;
 
 class ItemTest extends TestCase
 {
     public function testConstruct()
     {
-        $item = new Item("the_key", "the_value");
+        $item = new CacheItem("the_key", "the_value");
 
         $this->assertEquals("the_key", $item->getKey());
         $this->assertEquals("the_value", $item->get());
@@ -30,13 +30,13 @@ class ItemTest extends TestCase
         $time = time();
 
         // timestamp
-        $item = new Item("the_key", "the_value", $time + 123);
+        $item = new CacheItem("the_key", "the_value", $time + 123);
         $expected = new \DateTime();
         $expected->setTimestamp($time + 123);
         $this->assertEquals($expected, $item->expireAt());
 
         // ttl
-        $item = new Item("the_key", "the_value", 123);
+        $item = new CacheItem("the_key", "the_value", 123);
         $expected = new \DateTime();
         $expected->setTimestamp($time + 123);
         $this->assertEquals($expected, $item->expireAt());
@@ -44,7 +44,7 @@ class ItemTest extends TestCase
         // DateTime
         $dt = new \DateTime();
         $dt->setTimestamp($time + 123);
-        $item = new Item("the_key", "the_value", $dt);
+        $item = new CacheItem("the_key", "the_value", $dt);
 
         $expected = new \DateTime();
         $expected->setTimestamp($time + 123);
@@ -53,7 +53,7 @@ class ItemTest extends TestCase
         // DateInterval
         $dt = new \DateInterval("PT123S");
         $dt = \DateInterval::createFromDateString("+123 seconds");
-        $item = new Item("the_key", "the_value", $dt);
+        $item = new CacheItem("the_key", "the_value", $dt);
 
         $expected = new \DateTime();
         $expected->setTimestamp($time + 123);

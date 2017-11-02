@@ -2,58 +2,34 @@
 
 namespace StdCmp\Cache\Interfaces;
 
-// PSR-16 SimplCache
-interface SimpleCache
+interface SimpleCache extends CommonCache
 {
     /**
      * @param string $key
      * @param mixed|null $defaultValue
      * @return mixed
      */
-    public function get(string $key, $defaultValue = null);
+    public function getValue(string $key, $defaultValue = null);
 
     /**
-     * @param string[] $keys
+     * @param array $keys
      * @param mixed|null $defaultValue
-     * @return mixed[]
+     * @return array An associative array: key => value
      */
-    public function getMultiple(array $keys, $defaultValue = null): array;
+    public function getValues(array $keys, $defaultValue = null): array;
 
     /**
      * @param string $key
      * @param mixed $value
-     * @param int|\DateInterval|null $ttl
+     * @param int|\DateInterval|null $expiration
      * @return bool
      */
-    public function set(string $key, $value, $ttl = null): bool;
+    public function setValue(string $key, $value, $expiration = null): bool;
 
     /**
-     * @param array $values
-     * @param int|\DateInterval $ttl
-     * @return bool
+     * @param array $values An associative array of key => value
+     * @param int|\DateInterval|null $expiration
+     * @return bool Returns true only if all the values have properly been saved.
      */
-    public function setMultiple(array $values, $ttl = null): bool;
-
-    /**
-     * @param string $key
-     * @return bool
-     */
-    public function has(string $key): bool;
-
-    /**
-     * @param string $key
-     * @return bool
-     */
-    public function delete(string $key): bool;
-
-    /**
-     * @param string[] $keys
-     * @return bool
-     */
-    public function deleteMultiple(array $keys): bool;
-
-    /**
-     * @return bool
-     */
-    public function clear(): bool;
+    public function setValues(array $values, $expiration = null): bool;
 }
