@@ -11,13 +11,6 @@ interface CommonCache
     public function has(string $key): bool;
 
     /**
-     * Returns an associative array : key => (has in cache)
-     * @param string[] $keys
-     * @return array
-     */
-    public function getHits(array $keys): array;
-
-    /**
      * @param string $key
      * @return bool
      */

@@ -80,18 +80,6 @@ class FileCache implements SimpleCache, ItemAwareCache, TagAwareCache
     /**
      * {@inheritdoc}
      */
-    public function getHits(array $keys): array
-    {
-        $hits = [];
-        foreach ($keys as $key) {
-            $hits[$key] = $this->has($key);
-        }
-        return $hits;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function delete(string $key): bool
     {
         $this->validateKey($key);

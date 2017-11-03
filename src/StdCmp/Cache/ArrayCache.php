@@ -32,20 +32,6 @@ class ArrayCache implements SimpleCache, ItemAwareCache, TagAwareCache
     }
 
     /**
-     * Returns an associative array : key => (has in cache)
-     * @param string[] $keys
-     * @return array
-     */
-    public function getHits(array $keys): array
-    {
-        $hits = [];
-        foreach ($keys as $key) {
-            $hits[$key] = $this->has($key);
-        }
-        return $hits;
-    }
-
-    /**
      * @param string $key
      * @return bool
      */
