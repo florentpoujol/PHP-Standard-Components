@@ -210,4 +210,69 @@ class PDOTest extends TestCase
         $this->assertEquals(false, $values["bool"]);
         $this->assertEquals("default value", $values["non_existant_key"]);
     }
+
+    function testSetItem()
+    {
+        $this->cache->deleteAll();
+
+        $item = new CacheItem("int_item", 798, 123);
+        $this->cache->setItem($item);
+
+        $value = $this->cache->getValue("int_item");
+        $this->assertEquals(798, $value);
+
+        $item = new CacheItem("float_item", 798.123);
+        $this->cache->setItem($item);
+        $value = $this->cache->getValue("float_item");
+        $this->assertEquals(798.123, $value);
+    }
+
+    function testSetItems()
+    {
+        $items = [
+            new CacheItem("string_item", "an item value", 123),
+            new CacheItem("bool_item", true)
+        ];
+
+        $this->cache->setItems($items);
+
+        $value = $this->cache->getValue("string_item");
+        $this->assertEquals("an item value", $value);
+        $value = $this->cache->getValue("bool_item");
+        $this->assertEquals(true, $value);
+    }
+
+    function testGetItem()
+    {
+        $item = $this->cache->getItem("int_item");
+        $item2 = new CacheItem("int_item", 798, 123);
+        $this->assertEquals($item, $item2);
+
+        $item = $this->cache->getItem("bool_item");
+        $item2 = new CacheItem("bool_item", true);
+        $this->assertEquals($item, $item2);
+
+        $item = $this->cache->getItem("non_existant_key");
+        $item2 = new CacheItem("non_existant_key");
+        $this->assertEquals($item, $item2);
+    }
+
+    function getItems()
+    {
+        $items = $this->cache->getItems(["float_item", "string_item", "non_existant_key"]);
+        $this->assertEquals(3, count($items));
+
+        $item = new CacheItem("float_item", 798.123);
+        $this->assertEquals($item, $items["float_item"]);
+        $this->assertEquals(null, $item->getExpiration());
+
+        $item = new CacheItem("string_item", "a item value");
+        $this->assertEquals($item, $items["string_item"]);
+        $this->assertEquals(time() + 123, $item->getExpiration());
+
+        $item = new CacheItem("non_existant_key");
+        $this->assertEquals($item, $items["non_existant_key"]);
+        $this->assertEquals(null, $item->getValue());
+        $this->assertEquals(null, $item->getExpiration());
+    }
 }

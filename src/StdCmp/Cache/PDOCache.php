@@ -2,9 +2,11 @@
 
 namespace StdCmp\Cache;
 
+use StdCmp\Cache\Interfaces\CacheItem as CacheItemInterface;
+use StdCmp\Cache\Interfaces\ItemAwareCache;
 use StdCmp\Cache\Interfaces\SimpleCache;
 
-class PDOCache implements SimpleCache
+class PDOCache implements SimpleCache, ItemAwareCache
 {
     /**
      * @var \PDO
@@ -139,7 +141,7 @@ class PDOCache implements SimpleCache
 
     /**
      * @param array $values An associative array of key => value
-     * @param int|\DateInterval|null $expiration
+     * @param int|\DateInterval|array|null $expiration When on array: key =>
      * @return bool Returns true only if all the values have properly been saved.
      */
     public function setValues(array $values, $expiration = null): bool
@@ -148,7 +150,10 @@ class PDOCache implements SimpleCache
             return false;
         }
 
-        $expiration = $this->expirationToTimestamp($expiration);
+        $expiIsArray = is_array($expiration);
+        if (! $expiIsArray) {
+            $expiration = $this->expirationToTimestamp($expiration);
+        }
         $stmt = "INSERT OR REPLACE INTO $this->tableName (key, value, expiration) VALUES ";
         $data = [];
         foreach ($values as $key => $value) {
@@ -156,10 +161,92 @@ class PDOCache implements SimpleCache
             $stmt .= "(?, ?, ?), ";
             $data[] = $key;
             $data[] = serialize($value);
-            $data[] = $expiration;
+            if ($expiIsArray) {
+                $data[] = $this->expirationToTimestamp($expiration[$key]);
+            } else {
+                $data[] = $expiration;
+            }
         }
 
         return $this->doQuery(substr($stmt, 0,  -2), $data, true);
+    }
+
+    /**
+     * @param string $key
+     * @return CacheItem
+     */
+    public function getItem(string $key): CacheItemInterface
+    {
+        return $this->getItems([$key])[$key];
+    }
+
+    /**
+     * @param string[] $keys
+     * @return array An associative array: key => CacheItem
+     */
+    public function getItems(array $keys): array
+    {
+        if (empty($keys)) {
+            return [];
+        }
+
+        foreach ($keys as $key) {
+            $this->validateKey($key);
+        }
+
+        // build and run query
+        $stmt = "SELECT key, value, expiration FROM $this->tableName WHERE ";
+        $stmt .= str_repeat(
+            "(KEY = ? AND (expiration IS NULL OR expiration > " . time() . ")) OR ",
+            count($keys)
+        );
+        $query = $this->doQuery(substr($stmt, 0, -4), $keys);
+
+        // process result
+        $entries = $query->fetchAll();
+        $items = [];
+        foreach ($entries as $entry) {
+            $key = $entry["key"];
+            $items[$key] = new CacheItem(
+                $key,
+                unserialize($entry["value"]),
+                $entry["expiration"]
+            );
+        }
+
+        // complete values with keys not found in DB or expired
+        foreach ($keys as $key) {
+            if (!isset($items[$key])) {
+                $items[$key] = new CacheItem($key);
+            }
+        }
+
+        return $items;
+    }
+
+    /**
+     * @param CacheItem $item
+     * @return bool
+     */
+    public function setItem(CacheItemInterface $item): bool
+    {
+        return $this->setValues([$item->getKey() => $item->getValue()], $item->getExpiration());
+    }
+
+    /**
+     * @param array $items
+     * @return bool Returns true only if all the items have properly been saved.
+     */
+    public function setItems(array $items): bool
+    {
+        $values = [];
+        $expirations = [];
+        foreach ($items as $item) {
+            $key = $item->getKey();
+            $values[$key] = $item->getValue();
+            $expirations[$key] = $item->getExpiration();
+        }
+        return $this->setValues($values, $expirations);
     }
 
     // protected methods
