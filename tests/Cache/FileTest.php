@@ -2,14 +2,19 @@
 
 namespace Cache;
 
+use function Sodium\crypto_aead_chacha20poly1305_encrypt;
 use StdCmp\Cache\FileCache;
 use PHPUnit\Framework\TestCase;
 use StdCmp\Cache\CacheItem;
 
 class FileTest extends TestCase
 {
+    /**
+     * @var string
+     */
     protected static $sDirPath = "/tmp/testStdCmp/";
     protected $dirPath;
+
     /**
      * @var FileCache
      */
@@ -25,13 +30,13 @@ class FileTest extends TestCase
 
     public static function setUpBeforeClass()
     {
-        // $cache = new FileCache(self::$sDirPath);
-        // $cache->deleteAll();
+        $cache = new FileCache(self::$sDirPath);
+        $cache->deleteAll();
     }
 
     public static function tearDownAfterClass()
     {
-        // self::setUpBeforeClass();
+        self::setUpBeforeClass();
     }
 
     public function testThatConstructorHandleDirPathArgument()
@@ -385,5 +390,98 @@ class FileTest extends TestCase
         $this->assertFileNotExists($this->dirPath . "float_multiple");
         $this->assertFileNotExists($this->dirPath . "string_multiple");
         $this->assertFileNotExists($this->dirPath . "non_existant_key");
+    }
+
+    public function testAddWithTag()
+    {
+        $this->cache->deleteAll();
+
+        // setup
+        $prop = new \ReflectionProperty(FileCache::class, "keysByTags");
+        $prop->setAccessible(true);
+
+        $keysByTags = $prop->getValue($this->cache);
+        $this->assertEmpty($keysByTags);
+
+        // with one tag
+        $item = new CacheItem("int", 123);
+        $item->addTag("a_tag");
+
+        $this->cache->setItem($item);
+
+        $keysByTags = $prop->getValue($this->cache);
+        $this->assertArrayHasKey("a_tag", $keysByTags);
+        $this->assertArrayHasKey("int", $keysByTags["a_tag"]);
+
+        // with several tags
+        $item = new CacheItem("float", 12.3);
+        $item->setTags(["a_tag", "another_tag"]);
+
+        $this->cache->setItem($item);
+
+        $keysByTags = $prop->getValue($this->cache);
+        $this->assertArrayHasKey("a_tag", $keysByTags);
+        $this->assertArrayHasKey("another_tag", $keysByTags);
+        $this->assertArrayHasKey("int", $keysByTags["a_tag"]);
+        $this->assertArrayHasKey("float", $keysByTags["a_tag"]);
+        $this->assertArrayHasKey("float", $keysByTags["another_tag"]);
+
+        $this->assertFileExists($this->dirPath . "filecache.tags");
+    }
+
+    public function testHasTag()
+    {
+        $this->assertEquals(true, $this->cache->hasTag("a_tag"));
+        $this->assertEquals(true, $this->cache->hasTag("another_tag"));
+        $this->assertEquals(false, $this->cache->hasTag("non_existant_tag"));
+    }
+
+    public function testGetTagsForKey()
+    {
+        $method = new \ReflectionMethod(FileCache::class, "getTagsForKey");
+        $method->setAccessible(true);
+
+        $tags = $method->invoke($this->cache, "non_existant_key");
+        $this->assertEmpty($tags);
+
+        $tags = $method->invoke($this->cache, "int");
+        $this->assertEquals(1, count($tags));
+        $this->assertContains("a_tag", $tags);
+
+        $tags = $method->invoke($this->cache, "float");
+        $this->assertEquals(2, count($tags));
+        $this->assertContains("a_tag", $tags);
+        $this->assertContains("another_tag", $tags);
+    }
+
+    public function testGetWithTag()
+    {
+        // 1 items
+        $items = $this->cache->getItemsWithTag("another_tag");
+        $this->assertEquals(1, count($items));
+        $this->assertArrayHasKey("float", $items);
+
+        $floatItem = $this->cache->getItem("float");
+        $tags = $floatItem->getTags();
+        $this->assertEquals(2, count($tags));
+        $this->assertContains("a_tag", $tags);
+        $this->assertContains("another_tag", $tags);
+
+        $this->assertEquals($floatItem, $items["float"]);
+
+        // 2 items
+        $items = $this->cache->getItemsWithTag("a_tag");
+        $this->assertEquals(2, count($items));
+        $this->assertArrayHasKey("int", $items);
+        $this->assertArrayHasKey("float", $items);
+
+        $intItem = $this->cache->getItem("int");
+        $tags = $intItem->getTags();
+        $this->assertEquals(1, count($tags));
+        $this->assertContains("a_tag", $tags);
+        $this->assertNotContains("another_tag", $tags);
+
+        $this->assertEquals($intItem, $items["int"]);
+        $this->assertEquals($floatItem, $items["float"]);
     }
 }

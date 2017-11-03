@@ -2,9 +2,9 @@
 
 namespace StdCmp\Cache;
 
-use StdCmp\Cache\Interfaces;
+use \StdCmp\Cache\Interfaces\CacheItem as CacheItemInterface;
 
-class CacheItem implements Interfaces\CacheItem, Interfaces\TagAwareItem
+class CacheItem implements CacheItemInterface
 {
     /**
      * @var string

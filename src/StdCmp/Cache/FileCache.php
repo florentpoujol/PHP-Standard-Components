@@ -2,10 +2,11 @@
 
 namespace StdCmp\Cache;
 
-class FileCache implements
-    Interfaces\SimpleCache,
-    Interfaces\ItemAwareCache,
-    Interfaces\TagAwareCache
+use StdCmp\Cache\Interfaces\ItemAwareCache;
+use StdCmp\Cache\Interfaces\SimpleCache;
+use StdCmp\Cache\Interfaces\TagAwareCache;
+
+class FileCache implements SimpleCache, ItemAwareCache, TagAwareCache
 {
     /**
      * @var string
@@ -25,7 +26,7 @@ class FileCache implements
     /**
      * @var string
      */
-    protected $tagsFileName = "filecachetags";
+    protected $tagsFileName = "filecache.tags";
 
     /**
      * @param string $dirPath
@@ -55,6 +56,13 @@ class FileCache implements
         }
 
         $this->loadTagsFile();
+    }
+
+    public function __destruct()
+    {
+        if (!empty($this->keysByTags)) {
+            $this->writeTagsFile();
+        }
     }
 
     // CommonCache
@@ -88,12 +96,8 @@ class FileCache implements
     {
         $this->validateKey($key);
         $path = $this->getPath($key);
-        $this->deleteKeyFromTags($key);
-
-        if (file_exists($path)) {
-            return unlink($path);
-        }
-        return false;
+        $this->removeKeyFromTags($key);
+        return @unlink($path);
     }
 
     /**
@@ -173,7 +177,7 @@ class FileCache implements
     {
         $success = true;
         foreach ($values as $key => $value) {
-            $success = $this->setValue($key, $value, $this->expirationToTimestamp($expiration)) && $success;
+            $success = $this->setValue($key, $value, $expiration) && $success;
         }
         return $success;
     }
@@ -186,14 +190,14 @@ class FileCache implements
     public function getItem(string $key): Interfaces\CacheItem
     {
         $this->validateKey($key);
-        $path = $this->getPath($key);
         $item = new CacheItem($key);
 
         if ($this->has($key)) {
             $item->setValue($this->getValue($key));
             $item->isHit(true);
+            $item->setTags($this->getTagsForKey($key));
 
-            $expiration = filemtime($path);
+            $expiration = filemtime($this->getPath($key));
             if ($expiration !== false) {
                 $item->setExpiration($expiration);
             }
@@ -219,7 +223,10 @@ class FileCache implements
      */
     public function setItem(Interfaces\CacheItem $item): bool
     {
-        return $this->setValue($item->getKey(), $item->getValue(), $item->getExpiration());
+        $key = $item->getKey();
+        $this->validateKey($key);
+        $this->addKeyToTags($key, $item->getTags());
+        return $this->setValue($key, $item->getValue(), $item->getExpiration());
     }
 
     /**
@@ -229,7 +236,7 @@ class FileCache implements
     {
         $success = true;
         foreach ($items as $item) {
-            $success = $this->setValue($item->getKey(), $item->getValue(), $item->getExpiration()) && $success;
+            $success = $this->setItem($item) && $success;
         }
         return $success;
     }
@@ -241,20 +248,14 @@ class FileCache implements
      */
     public function getItemsWithTag(string $tag): array
     {
-        $keys = $this->keysByTags[$tag] ?? [];
-        return $this->getItems($keys);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getItemsWithTags(array $tags): array
-    {
-        $items = [];
-        foreach ($tags as $tag) {
-            $items = array_merge($items, $this->getItemsWithTag($tag));
+        $keys = [];
+        if (isset($this->keysByTags[$tag])) {
+            $keys = array_keys($this->keysByTags[$tag]);
         }
-        return array_unique($items);
+        if (empty($keys)) {
+            return $keys;
+        }
+        return $this->getItems($keys);
     }
 
     /**
@@ -262,19 +263,10 @@ class FileCache implements
      */
     public function hasTag(string $tag): bool
     {
-        return isset($this->keysByTags[$tag]);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function hasTags(array $tags): array
-    {
-        $_tags = [];
-        foreach ($tags as $tag) {
-            $_tags[$tag] = $this->hasTag($tag);
+        if (isset($this->keysByTags[$tag])) {
+            return count($this->keysByTags[$tag]) > 0;
         }
-        return $_tags;
+        return false;
     }
 
     /**
@@ -282,32 +274,12 @@ class FileCache implements
      */
     public function deleteTag(string $tag): bool
     {
-        $success = false;
-
+        $success = true;
         if (isset($this->keysByTags[$tag])) {
-            $success = $this->deleteAll($this->keysByTags[$tag]);
+            $success = $this->deleteAll($this->keysByTags[$tag]) && $success;
             unset($this->keysByTags[$tag]);
         }
-
         return $success;
-    }
-
-    public function deleteTags(array $tags): bool
-    {
-        $keys = [];
-
-        foreach ($tags as $tag) {
-            if (isset($this->keysByTags[$tag])) {
-                $_keys = $this->keysByTags[$tag];
-                $keys = array_merge(
-                    $keys,
-                    $this->keysByTags[$tag]
-                );
-                unset($this->keysByTags[$tag]);
-            }
-        }
-
-        return $this->deleteAll(array_unique($keys));
     }
 
     // protected methods
@@ -400,15 +372,58 @@ class FileCache implements
 
     /**
      * @param string $key
+     * @param array $tags
      */
-    protected function deleteKeyFromTags(string $key)
+    protected function addKeyToTags(string $key, array $tags)
     {
-        foreach ($this->keysByTags as $id => $keys) {
-            $offset = array_search($key, $keys);
-            if ($offset !== false) {
-                array_splice($this->keysByTags[$id], $offset, 1);
+        $writeTagsFile = false;
+        foreach ($tags as $tag) {
+            if (! isset($this->keysByTags[$tag])) {
+                $this->keysByTags[$tag] = [];
+            }
+            if (! isset($this->keysByTags[$tag][$key])) {
+                $this->keysByTags[$tag][$key] = true;
+                $writeTagsFile = true;
             }
         }
+        if ($writeTagsFile) {
+            $this->writeTagsFile();
+        }
+    }
+
+    /**
+     * @param string $key
+     * @param array|null $tags
+     */
+    protected function removeKeyFromTags(string $key, array $tags = null)
+    {
+        $writeTagsFile = false;
+        if ($tags === null) {
+            $tags = array_keys($this->keysByTags);
+        }
+        foreach ($tags as $tag) {
+            if (isset($this->keysByTags[$tag][$key])) {
+                unset($this->keysByTags[$tag][$key]);
+                $writeTagsFile = true;
+            }
+        }
+        if ($writeTagsFile) {
+            $this->writeTagsFile();
+        }
+    }
+
+    /**
+     * @param string $key
+     */
+    protected function getTagsForKey(string $key)
+    {
+        $tags = [];
+        foreach ($this->keysByTags as $tag => $keys) {
+            if (isset($keys[$key])) {
+                $tags[] = $tag;
+            }
+        }
+        return $tags;
     }
 
     protected function loadTagsFile()
@@ -419,15 +434,15 @@ class FileCache implements
         if (file_exists($path)) {
             $content = file_get_contents($path);
         }
-        if (is_string($content )) {
-            $keysByTags = unserialize($content); // false + E_NOTICE on error
+        if (is_string($content)) {
+            $keysByTags = @unserialize($content); // false + E_NOTICE on error
         }
         if (is_array($keysByTags)) {
             $this->keysByTags = $keysByTags;
         }
     }
 
-    protected function saveTagsFile()
+    protected function writeTagsFile()
     {
         $path = $this->dirPath . $this->tagsFileName;
         file_put_contents($path, serialize($this->keysByTags));

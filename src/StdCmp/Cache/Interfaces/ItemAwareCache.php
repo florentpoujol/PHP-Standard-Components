@@ -23,8 +23,8 @@ interface ItemAwareCache extends CommonCache
     public function setItem(CacheItem $item): bool;
 
     /**
-     * @param CacheItem[] $item
+     * @param array $items
      * @return bool Returns true only if all the items have properly been saved.
      */
-    public function setItems(array $items);
+    public function setItems(array $items): bool;
 }
