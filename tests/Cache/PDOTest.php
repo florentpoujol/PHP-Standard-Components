@@ -275,4 +275,114 @@ class PDOTest extends TestCase
         $this->assertEquals(null, $item->getValue());
         $this->assertEquals(null, $item->getExpiration());
     }
+
+    function testSetItemWithTag()
+    {
+        $this->cache->deleteAll();
+
+        $item = new CacheItem("int_item", 798, 123);
+        $item->addTag("a_tag");
+        $this->cache->setItem($item);
+
+        $query = $this->pdo->query("SELECT * FROM pdo_cache WHERE key = 'int_item'");
+        $entry = $query->fetch();
+        $tags = json_decode($entry["tags"], true);
+        $this->assertEquals(1, count($tags));
+        $this->assertEquals("a_tag", $tags[0]);
+
+        // 2 tags
+        $item = new CacheItem("float_item", 798.123);
+        $item->addTag("a_tag");
+        $item->addTag("another_tag");
+        $this->cache->setItem($item);
+
+        $query = $this->pdo->query("SELECT * FROM pdo_cache WHERE key = 'float_item'");
+        $entry = $query->fetch();
+        $tags = json_decode($entry["tags"], true);
+        $this->assertEquals(2, count($tags));
+        $this->assertEquals("a_tag", $tags[0]);
+        $this->assertEquals("another_tag", $tags[1]);
+    }
+
+    function testHasTag()
+    {
+        $value = $this->cache->hasTag("a_tag");
+        $this->assertEquals(true, $value);
+
+        $value = $this->cache->hasTag("another_tag");
+        $this->assertEquals(true, $value);
+
+        $value = $this->cache->hasTag("non_existant_tag");
+        $this->assertEquals(false, $value);
+    }
+
+    function testItemAreGetWithTheirTag()
+    {
+        $item = $this->cache->getItem("int_item");
+        $tags = $item->getTags();
+        $this->assertEquals(1, count($tags));
+        $this->assertEquals("a_tag", $tags[0]);
+
+        $item = $this->cache->getItem("float_item");
+        $tags = $item->getTags();
+        $this->assertEquals(2, count($tags));
+        $this->assertEquals("a_tag", $tags[0]);
+        $this->assertEquals("another_tag", $tags[1]);
+    }
+
+    function testGetItemsWithTag()
+    {
+        $items = $this->cache->getItemsWithTag("a_tag");
+        $this->assertEquals(2, count($items));
+        $this->assertArrayHasKey("int_item", $items);
+        $this->assertArrayHasKey("float_item", $items);
+
+        $items = $this->cache->getItemsWithTag("another_tag");
+        $this->assertEquals(1, count($items));
+        $this->assertArrayHasKey("float_item", $items);
+
+        $items = $this->cache->getItemsWithTag("non_existant_tag");
+        $this->assertEquals(0, count($items));
+    }
+
+    function testDelete()
+    {
+        $this->assertEquals(true, $this->cache->has("int_item"));
+        $this->assertEquals(true, $this->cache->has("float_item"));
+        $this->assertEquals(false, $this->cache->has("non_existant_item"));
+
+        $this->assertEquals(true, $this->cache->hasTag("a_tag"));
+        $this->assertEquals(true, $this->cache->hasTag("another_tag"));
+        $this->assertEquals(false, $this->cache->hasTag("non_existant_tag"));
+
+        $this->cache->deleteTag("non_existant_tag");
+
+        $this->assertEquals(true, $this->cache->has("int_item"));
+        $this->assertEquals(true, $this->cache->has("float_item"));
+        $this->assertEquals(false, $this->cache->has("non_existant_item"));
+
+        $this->assertEquals(true, $this->cache->hasTag("a_tag"));
+        $this->assertEquals(true, $this->cache->hasTag("another_tag"));
+        $this->assertEquals(false, $this->cache->hasTag("non_existant_tag"));
+
+        $this->cache->deleteTag("another_tag");
+
+        $this->assertEquals(true, $this->cache->has("int_item"));
+        $this->assertEquals(false, $this->cache->has("float_item"));
+        $this->assertEquals(false, $this->cache->has("non_existant_item"));
+
+        $this->assertEquals(true, $this->cache->hasTag("a_tag"));
+        $this->assertEquals(false, $this->cache->hasTag("another_tag"));
+        $this->assertEquals(false, $this->cache->hasTag("non_existant_tag"));
+
+        $this->cache->deleteTag("a_tag");
+
+        $this->assertEquals(false, $this->cache->has("int_item"));
+        $this->assertEquals(false, $this->cache->has("float_item"));
+        $this->assertEquals(false, $this->cache->has("non_existant_item"));
+
+        $this->assertEquals(false, $this->cache->hasTag("a_tag"));
+        $this->assertEquals(false, $this->cache->hasTag("another_tag"));
+        $this->assertEquals(false, $this->cache->hasTag("non_existant_tag"));
+    }
 }

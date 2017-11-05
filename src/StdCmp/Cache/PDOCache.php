@@ -5,8 +5,9 @@ namespace StdCmp\Cache;
 use StdCmp\Cache\Interfaces\CacheItem as CacheItemInterface;
 use StdCmp\Cache\Interfaces\ItemAwareCache;
 use StdCmp\Cache\Interfaces\SimpleCache;
+use StdCmp\Cache\Interfaces\TagAwareCache;
 
-class PDOCache implements SimpleCache, ItemAwareCache
+class PDOCache implements SimpleCache, ItemAwareCache, TagAwareCache
 {
     /**
      * @var \PDO
@@ -150,10 +151,7 @@ class PDOCache implements SimpleCache, ItemAwareCache
             return false;
         }
 
-        $expiIsArray = is_array($expiration);
-        if (! $expiIsArray) {
-            $expiration = $this->expirationToTimestamp($expiration);
-        }
+        $expiration = $this->expirationToTimestamp($expiration);
         $stmt = "INSERT OR REPLACE INTO $this->tableName (key, value, expiration) VALUES ";
         $data = [];
         foreach ($values as $key => $value) {
@@ -161,19 +159,17 @@ class PDOCache implements SimpleCache, ItemAwareCache
             $stmt .= "(?, ?, ?), ";
             $data[] = $key;
             $data[] = serialize($value);
-            if ($expiIsArray) {
-                $data[] = $this->expirationToTimestamp($expiration[$key]);
-            } else {
-                $data[] = $expiration;
-            }
+            $data[] = $expiration;
         }
 
         return $this->doQuery(substr($stmt, 0,  -2), $data, true);
     }
 
+    // ItemAwareCache interface
+
     /**
      * @param string $key
-     * @return CacheItem
+     * @return CacheItemInterface
      */
     public function getItem(string $key): CacheItemInterface
     {
@@ -194,25 +190,7 @@ class PDOCache implements SimpleCache, ItemAwareCache
             $this->validateKey($key);
         }
 
-        // build and run query
-        $stmt = "SELECT key, value, expiration FROM $this->tableName WHERE ";
-        $stmt .= str_repeat(
-            "(KEY = ? AND (expiration IS NULL OR expiration > " . time() . ")) OR ",
-            count($keys)
-        );
-        $query = $this->doQuery(substr($stmt, 0, -4), $keys);
-
-        // process result
-        $entries = $query->fetchAll();
-        $items = [];
-        foreach ($entries as $entry) {
-            $key = $entry["key"];
-            $items[$key] = new CacheItem(
-                $key,
-                unserialize($entry["value"]),
-                $entry["expiration"]
-            );
-        }
+        $items = $this->_getItems($keys, "key");
 
         // complete values with keys not found in DB or expired
         foreach ($keys as $key) {
@@ -221,7 +199,7 @@ class PDOCache implements SimpleCache, ItemAwareCache
             }
         }
 
-        return $items;
+        return  $items;
     }
 
     /**
@@ -230,7 +208,7 @@ class PDOCache implements SimpleCache, ItemAwareCache
      */
     public function setItem(CacheItemInterface $item): bool
     {
-        return $this->setValues([$item->getKey() => $item->getValue()], $item->getExpiration());
+        return $this->setItems([$item]);
     }
 
     /**
@@ -239,14 +217,71 @@ class PDOCache implements SimpleCache, ItemAwareCache
      */
     public function setItems(array $items): bool
     {
-        $values = [];
-        $expirations = [];
-        foreach ($items as $item) {
-            $key = $item->getKey();
-            $values[$key] = $item->getValue();
-            $expirations[$key] = $item->getExpiration();
+        if (empty($items)) {
+            return false;
         }
-        return $this->setValues($values, $expirations);
+
+        $stmt = "INSERT OR REPLACE INTO $this->tableName (key, value, expiration, tags) VALUES ";
+        $data = [];
+        foreach ($items as $key => $item) {
+            $key = $item->getKey();
+            $this->validateKey($key);
+
+            $stmt .= "(?, ?, ?,  ?), ";
+            $data[] = $key;
+            $data[] = serialize($item->getValue());
+
+            $expiration = $item->getExpiration();
+            if ($expiration !== null) {
+                $data[] = $this->expirationToTimestamp($expiration);
+            } else {
+                $data[] = null;
+            }
+
+            $tags = $item->getTags();
+            if (! empty($tags)) {
+                $data[] = json_encode($tags);
+            } else {
+                $data[] = null;
+            }
+        }
+
+        return $this->doQuery(substr($stmt, 0,  -2), $data, true);
+    }
+
+    // TagAwareCache interface
+
+    /**
+     * @param string $tag
+     * @return CacheItemInterface
+     */
+    public function getItemsWithTag(string $tag): array
+    {
+        return $this->_getItems(["%$tag%"], "tags");
+    }
+
+    /**
+     * @param string $tag
+     * @return bool
+     */
+    public function hasTag(string $tag): bool
+    {
+        $stmt = "SELECT key FROM $this->tableName WHERE tags LIKE ?";
+        $query = $this->doQuery($stmt, ["%$tag%"]);
+        return $query->fetch() !== false;
+    }
+
+    /**
+     * @param string $tag
+     * @return bool
+     */
+    public function deleteTag(string $tag): bool
+    {
+        $stmt = "SELECT key FROM $this->tableName WHERE tags LIKE ?";;
+        $query = $this->doQuery($stmt, ["%$tag%"]);
+        $entries = $query->fetchAll();
+        $keys = array_column($entries, "key");
+        return $this->deleteAll($keys);
     }
 
     // protected methods
@@ -323,5 +358,43 @@ EOL;
         $stmt = "SELECT $field FROM $this->tableName WHERE $field = ?";
         $query = $this->doQuery($stmt, [$value]);
         return $query->fetch() !== false;
+    }
+
+    protected function _getItems(array $keysOrTags, string $fieldName): array
+    {
+        if (empty($keysOrTags)) {
+            return [];
+        }
+
+        // build and run query
+        $stmt = "SELECT * FROM $this->tableName WHERE (expiration IS NULL OR expiration > " . time() . ") AND (";
+        $equalOrLike = $fieldName === "tags" ? "LIKE" : "=";
+        $stmt .= str_repeat(
+            "$fieldName $equalOrLike ? OR ",
+            count($keysOrTags)
+        );
+        $stmt = substr($stmt, 0, -4) . ")";
+
+        $query = $this->doQuery($stmt, $keysOrTags);
+
+        // process result
+        $entries = $query->fetchAll();
+        $items = [];
+        foreach ($entries as $entry) {
+            $key = $entry["key"];
+            $item = new CacheItem(
+                $key,
+                unserialize($entry["value"]),
+                $entry["expiration"]
+            );
+
+            if ($entry["tags"] !== null) {
+                $item->setTags(json_decode($entry["tags"], true));
+            }
+
+            $items[$key] = $item;
+        }
+
+        return $items;
     }
 }
