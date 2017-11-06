@@ -4,9 +4,10 @@ This project aims to research and design basic standard components, that is a li
 
 Such components typically include:
 - [logger](doc/logger.md)
-- cache
+- [cache](doc/cache.md)
+- event emitter
+- dependency container
 - routing
-- dependency container/injection
 - HTTP wrapper (Request/Response classes)
 - ??
 
@@ -18,4 +19,4 @@ The [FIG's PSRs](http://www.php-fig.org/psr/) are also to bee taken into conside
 
 A good example of such standard component is the logger:
 - both Laravel and Symfony uses [Monolog](https://github.com/Seldaek/monolog)
-- The Zend framework do not use Monolg but its logger API is VERY similar (same system of logger, processors, writers (handlers in Monolog), filter and formatters)
+- The Zend framework do not use Monolog but its logger API is VERY similar (same system of logger, processors, writers (handlers in Monolog), filter and formatters)
