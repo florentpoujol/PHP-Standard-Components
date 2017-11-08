@@ -9,19 +9,17 @@ require "classes.php";
 
 class DIContainerTest extends TestCase
 {
-    protected static $scontainer;
     /**
      * @var DIContainer
      */
     protected $container;
-
-    public static function setUpBeforeClass()
-    {
-        self::$scontainer = new DIContainer();
-    }
+    protected static $scontainer;
 
     protected function setUp()
     {
+        if (self::$scontainer === null) {
+            self::$scontainer = new DIContainer();
+        }
         $this->container = self::$scontainer;
     }
 
@@ -38,27 +36,27 @@ class DIContainerTest extends TestCase
         $prop->setAccessible(true);
         $params = $prop->getValue($this->container);
 
-        $this->assertEquals("a string", $params["string"]);
-        $this->assertEquals(123, $params["int"]);
-        $this->assertEquals(123.456, $params["float"]);
-        $this->assertEquals(true, $params["bool"]);
-        $this->assertEquals(["a", "array"], $params["array"]);
+        $this->assertSame("a string", $params["string"]);
+        $this->assertSame(123, $params["int"]);
+        $this->assertSame(123.456, $params["float"]);
+        $this->assertSame(true, $params["bool"]);
+        $this->assertSame(["a", "array"], $params["array"]);
     }
 
     function testGetParameter()
     {
         $value = $this->container->getParameter("string");
-        $this->assertEquals("a string", $value);
+        $this->assertSame("a string", $value);
         $value = $this->container->getParameter("int");
-        $this->assertEquals(123, $value);
+        $this->assertSame(123, $value);
         $value = $this->container->getParameter("float");
-        $this->assertEquals(123.456, $value);
+        $this->assertSame(123.456, $value);
         $value = $this->container->getParameter("bool");
-        $this->assertEquals(true, $value);
+        $this->assertSame(true, $value);
         $value = $this->container->getParameter("array");
-        $this->assertEquals(["a", "array"], $value);
+        $this->assertSame(["a", "array"], $value);
         $value = $this->container->getParameter("non_existant_key");
-        $this->assertEquals(null, $value);
+        $this->assertSame(null, $value);
     }
 
     function testSetService()
@@ -83,9 +81,9 @@ class DIContainerTest extends TestCase
         $prop->setAccessible(true);
         $services = $prop->getValue($this->container);
 
-        $this->assertEquals(MonoLogger::class, $services["logger"]);
-        $this->assertEquals(MonoLogger::class, $services[LoggerInterface::class]);
-        $this->assertEquals([
+        $this->assertSame(MonoLogger::class, $services["logger"]);
+        $this->assertSame(MonoLogger::class, $services[LoggerInterface::class]);
+        $this->assertSame([
             "string" => "a simple string", // simple value, 4th parameter
             "priority" => "%int", // int parameter
             "monoLogger" => "@logger", // logger service
@@ -96,45 +94,46 @@ class DIContainerTest extends TestCase
 
     function testHas()
     {
-        $this->assertEquals(true, $this->container->has("logger"));
-        $this->assertEquals(true, $this->container->has(LoggerInterface::class));
-        $this->assertEquals(true, $this->container->has(OnlyParams::class));
-        $this->assertEquals(true, $this->container->has("callable"));
-        $this->assertEquals(false, $this->container->has("non_existant_key"));
+        $this->assertSame(true, $this->container->has("logger"));
+        $this->assertSame(true, $this->container->has(LoggerInterface::class));
+        $this->assertSame(true, $this->container->has(OnlyParams::class));
+        $this->assertSame(true, $this->container->has("callable"));
+        $this->assertSame(false, $this->container->has("non_existant_key"));
     }
 
     function testGetServiceFromCallable()
     {
         $value = $this->container->get("callable");
-        $this->assertEquals(1, $value);
+        $this->assertSame(1, $value);
         $value = $this->container->get("callable");
-        $this->assertEquals(1, $value);
+        $this->assertSame(1, $value);
 
         $value = $this->container->make("callable");
-        $this->assertEquals(2, $value);
+        $this->assertSame(2, $value);
         $value = $this->container->make("callable");
-        $this->assertEquals(3, $value);
+        $this->assertSame(3, $value);
 
         $value = $this->container->get("callable");
-        $this->assertEquals(1, $value);
-
-        $value = $this->container->get("non_existant_key");
-        $this->assertEquals(null, $value);
+        $this->assertSame(1, $value);
 
 
         $class = new \ReflectionClass(DIContainer::class);
+
+        $prop = $class->getProperty("cached");
+        $prop->setAccessible(true);
+        $cached = $prop->getValue($this->container);
+
+        $this->assertSame(1, $cached["callable"]);
 
         $prop = $class->getProperty("services");
         $prop->setAccessible(true);
         $services = $prop->getValue($this->container);
 
-        $this->assertEquals(1, $services["callable"]);
+        $this->assertInternalType("callable", $services["callable"]);
 
-        $prop = $class->getProperty("factories");
-        $prop->setAccessible(true);
-        $factories = $prop->getValue($this->container);
-
-        $this->assertInternalType("callable", $factories["callable"]);
+        $this->expectException(\Exception::class);
+        $this->container->get("non_existant_service");
+        $this->container->make("non_existant_service");
     }
 
     function testSimpleAutowire()
@@ -151,8 +150,8 @@ class DIContainerTest extends TestCase
         $object = $this->container->get(OnlyParams::class);
 
         $this->assertInstanceOf(OnlyParams::class, $object);
-        $this->assertEquals("a simple string", $object->string);
-        $this->assertEquals(123, $object->priority);
+        $this->assertSame("a simple string", $object->string);
+        $this->assertSame(123, $object->priority);
         $this->assertInstanceOf(MonoLogger::class, $object->monoLogger);
     }
 
@@ -174,8 +173,8 @@ class DIContainerTest extends TestCase
         $this->assertInstanceOf(LoggerInterface::class, $object->monoLogger);
         $this->assertInstanceOf(MonoLogger::class, $object->monoLogger);
 
-        $this->assertEquals("a simple string", $object->string);
-        $this->assertEquals(123, $object->priority);
+        $this->assertSame("a simple string", $object->string);
+        $this->assertSame(123, $object->priority);
     }
 
     function testGetThrowsExceptionOnUnresolvedName()
