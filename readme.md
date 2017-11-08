@@ -5,8 +5,9 @@ This project aims to research and design basic standard components, that is a li
 Such components typically include:
 - [logger](doc/logger.md)
 - [cache](doc/cache.md)
-- event emitter
-- dependency container
+- [event emitter](doc/event.md)
+- [dependency container](doc/container.md)
+- fluent query builder
 - routing
 - HTTP wrapper (Request/Response classes)
 - ??
