@@ -11,7 +11,7 @@ class DIContainer implements ContainerInterface
 
     /**
      * Values cached by get().
-     * Typically object instances, but may be any values returned by closures or found in
+     * Typically object instances, but may be any values returned by closures or found in services.
      * @var array
      */
     protected $cached = [];
@@ -111,12 +111,22 @@ class DIContainer implements ContainerInterface
 
         $value = $this->services[$serviceName];
 
+        // check if is a callable first, because callables can be string or array, too
+        if (is_callable($value)) {
+            return $value($this);
+        }
+
+        if (is_array($value)) {
+            // $name is class name, $value is class constructor description
+            return $this->createObject($serviceName, $value);
+        }
+
         if (is_string($value)) {
             // class name or alias to other service
 
-            // resolve alias and go deeper if needed
+            // resolve alias as deep as possible
             $valueChanged = false;
-            while (isset($this->services[$value]) && is_string($this->services[$value])) {
+            while (isset($this->services[$value])) {
                 $value = $this->services[$value];
                 $valueChanged = true;
             }
@@ -125,23 +135,14 @@ class DIContainer implements ContainerInterface
                 return $this->make($value);
             }
 
-            // suppose class name (or service that don't exists)
             if (class_exists($value)) {
                 return $this->createObject($value);
             }
 
-            throw new \Exception("Service '$serviceName' leads to a string value '$value' that is neither a known service nor a class name.");
+            throw new \Exception("Service '$serviceName' has a string value '$value' that is neither another known service nor a class name.");
         }
 
-        if (is_array($value)) {
-            // $name is class name, $value is class constructor description
-            return $this->createObject($serviceName, $value);
-        }
-
-        if (is_callable($value)) {
-            return $value($this);
-        }
-
+        $this->cached[$serviceName] = $value;
         return $value;
     }
 
@@ -164,6 +165,7 @@ class DIContainer implements ContainerInterface
         $params = $constructor->getParameters();
         foreach ($params as $param) {
             $paramName = $param->getName();
+            $isParamMandatory = ! $param->isOptional();
 
             $typeName = "";
             $typeIsBuiltin = false;
@@ -178,37 +180,44 @@ class DIContainer implements ContainerInterface
 
                 if (is_string($value)) {
                     if ($value[0] === "@") { // service reference
-                        $value = $this->get(str_replace("@", "", $value));
+                        $value = $this->make(str_replace("@", "", $value));
                         // shoudn't make() be called here when createObject() is called from make() ?
+                        // could allow user to prepend service name with @@ instead of @ to use either get or make
                     } elseif ($value[0] === "%") { // parameter reference
                         $value = $this->getParameter(str_replace("%", "", $value));
                     }
                 }
 
                 $args[] = $value;
+                continue;
             }
-            elseif ($typeName === "" || $typeIsBuiltin) {
+
+            if ($typeName === "" || $typeIsBuiltin) {
                 // no type hint or not an object
-                throw new \Exception("Constructor argument '$paramName' for class '$className' has no type-hint or is of built-in type '$typeName' but value is not manually specified in the container.");
-            }
-            else { // $typeName !== "" && ! $typeIsBuiltin
-                // param is a class or interface (internal or userland)
-
-                if (interface_exists($typeName) && ! $this->has($typeName)) {
-                    throw new \Exception("Constructor argument '$paramName' for class '$className' is type-hinted with the interface '$typeName' but no alias for it is set in the container.");
+                if ($isParamMandatory) {
+                    throw new \Exception("Constructor argument '$paramName' for class '$className' has no type-hint or is of built-in type '$typeName' but value is not manually specified in the container.");
                 }
+                continue;
+            }
 
+            // param is a class or interface (internal or userland)
+            if (interface_exists($typeName) && !$this->has($typeName)) {
+                throw new \Exception("Constructor argument '$paramName' for class '$className' is type-hinted with the interface '$typeName' but no alias for it is set in the container.");
+            }
+
+            $object = null;
+
+            if ($isParamMandatory) {
                 try {
                     $object = $this->make($typeName);
                 } catch (\Exception $exception) {
                     throw new \Exception("Constructor argument '$paramName' for class '$className' has type '$typeName' but the container don't know how to resolve it.");
                 }
-
-                $args[] = $object;
             }
+
+            $args[] = $object;
         }
 
         return new $className(...$args);
     }
-
 }
