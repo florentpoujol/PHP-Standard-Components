@@ -192,26 +192,31 @@ class QueryBuilder
         return $str;
     }
 
-    public function join(string $tableName, string $joinType = null): self
+    public function join(string $tableName, string $alias = null, string $joinType = null): self
     {
+        if ($alias !== null) {
+            $tableName .= " AS $alias";
+        }
+
         if ($joinType === null) {
             $joinType = "JOIN";
         } else {
             $joinType .= " JOIN";
         }
+
         $this->join[] = "$joinType $tableName ";
         $this->lastJoinId++;
         return $this;
     }
-    public function leftJoin(string $tableName): self
+    public function leftJoin(string $tableName, string $alias = null): self
     {
         return $this->join($tableName, "LEFT");
     }
-    public function rightJoin(string $tableName): self
+    public function rightJoin(string $tableName, string $alias = null): self
     {
         return $this->join($tableName, "RIGHT");
     }
-    public function fullJoin(string $tableName): self
+    public function fullJoin(string $tableName, string $alias = null): self
     {
         return $this->join($tableName, "FULL");
     }
