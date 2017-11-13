@@ -7,10 +7,10 @@ Such components typically include:
 - [cache](doc/cache.md)
 - [event emitter](doc/event.md)
 - [dependency container](doc/container.md)
-- fluent query builder
+- [fluent query builder](doc/querybuilder.md)
+- HTTP Request/Response
 - routing
-- HTTP wrapper (Request/Response classes)
-- ??
+- session and flash messages
 
 The idea is to research how the major frameworks (or the libraries they depends on) handle these subjects, and implements a reasonable common ground that could be implemented as its own standalone library.
 
