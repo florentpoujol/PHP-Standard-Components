@@ -7,38 +7,28 @@ The primary use of the query builder is to build a query string suitable to be p
 But if supplied with a PDO instance, you can run the query directly from the builder object.
 
 
-In all example below the `$inputParams` variable represent the same argument that would be passe to `PDOStatemeent::Execute()` :
-- an associative array: placeholder => value
-- a simple array of values: id => value 
-- an array of one of those two types
-
-
 ## Query building API
 
 With the exception of the methods to build conditions (`where()`, `having()`, `join()` and `on()` and their derivative), all these methods can be called in any order. 
 
-Create an instance like so:
-```php
-$query = new QueryBuilder();
-```
-
-### Action verb
+### Action verbs
 
 __Insert__
 
 ```php
+$query = new QueryBuilder();
 $query->insert("name");
 ```
 
 This would allow to insert a single field "name"
 
-You can chain calls to insert or supply an array to insert()
+You can chain calls to `insert()` or supply an array.
 ```php
 $query->insert("name")->insert("email"); // subsequent call add a new field
 $query->insert(["name", "email"]); // a call replace all the fields for the query
 ```
 
-You can also use `insertOrReplace()` instead of `insert()`;
+You can also use `insertOrReplace()` instead of `insert()`.
 
 __Update__
 
@@ -51,6 +41,9 @@ $query->update(["name", "email"]);
 __Select__
 
 ```php
+$query->select(); 
+// same as $query->select("*");
+
 $query->select("name");
 // or with an alias
 $query->select("name", "alias");
@@ -76,12 +69,13 @@ $query->table("the_table", "alias");
 $query->table("the_table as alias");
 ```
 
-For more expressiveness, you can also use `fromTable()` or `inTable()`.  
+You can also use `fromTable()` or `inTable()`.  
 Ie: `$query->insert($data)->inTable("the_table");`
 
 ### Where
 
-The where() method accept one, two or three arguments:
+The `where()` method accept one, two or three arguments.   
+Values that are not a placeholder (named or `?`) are escaped with `PDO::quote()` (when a PDO instance is supplied to the  query builder, and the PDO driver supports it).
 
 ```php
 $query->where("field", "=", "value");
@@ -101,7 +95,7 @@ You can set the whole expression as a single argument
 $query->where("field = value");
 ```
 
-For convenience, you can also use the following helpers:
+You can also use the following helpers:
 - `whereNull($field)` / `whereNotNull($field)`
 - `whereBetween($field, $min, $max)` / `whereNotBetween($field, $min, $max)` 
 - `whereIn($field, $values)` / `whereNotIn($field, $values)`
@@ -115,7 +109,7 @@ $query
     ->whereIn("anotherField", [1, 2, 3]);
 
 // this would generate the following query string
-WHERE field = value OR otherField IS NULL AND anotherField IN (1, 2, 3)
+// "WHERE field = value OR otherField IS NULL AND anotherField IN (1, 2, 3)"
 ```
 
 __Nested conditions__
@@ -134,13 +128,12 @@ $query
     ->orWhereNotIn("anotherField", [1, 2, 3]);
 
 // this would generate the following query string
-WHERE field = value OR (field = value AND field2 = value) OR anotherField NOT IN (1, 2, 3)
+// "WHERE field = value OR (field = value AND field2 = value) OR anotherField NOT IN (1, 2, 3)"
 ```
 
 ### Join
 
-Use the `join()` and `on()` methods.   
-`on()` works like `where()`, it also accept a callable to create nested conditions.
+Use the `join()` and `on()` methods. `on()` works just like `where()`.
 
 ```php
 $query
@@ -150,7 +143,7 @@ $query
     ->orOn("field LIKE `%John%`");
 ```
 
-For more join types, you can use `leftJoin()` , `leftJoin()`, `leftJoin()` or pass the join type as the third parameter of `join()`.
+For more join types, you can use `leftJoin()` , `rightJoin()`, `fullJoin()` or pass the join type as the third parameter of `join()`.
 
 ```php
 $query->join("the_table", null, "LEFT");
@@ -158,7 +151,7 @@ $query->join("the_table", null, "LEFT");
 $query->leftJoin("the_table");
 ```
 
-You can of course add several join clauses. The conditions specified via the `on()` method are linked to the join clauses created by the last call to the `join()` method.
+You can add several join clauses. The conditions specified via the `on()` method are linked to the join clause created by the last call to the `join()` method.
 
 ```php
 $query
@@ -166,94 +159,174 @@ $query
     ->join("the_other_table")->on("field", ">=", "value");
 ```
 
-*orderBy($field, $dir = "ASC")
-newest($field = "created_at") // same as orderBy("creted_at", "DESC")
-oldest()                      // same as orderBy("created_at", "ASC")
-last($field = "id") // same as ORDER BY $field DESC LIMIT 1
-first($field = "id") // same as ORDER BY $field ASC LIMIT 1
+### Other select triage methods
 
-*groupBy(string $field)
-*groupBy(string[] $fields)
+__Group By__
 
-*having($field, $sign, $value)
-*orHaving()
+```php
+$query->groupBy("field")->groupBy("field2");
+// or 
+$query->groupBy(["field", "field2"]);
+```
 
-*limit($limit, $offset = null)
-*offset($value)
+__Having__
 
+Works just like `where()` and `on()`.
 
+```php
+$query
+    ->having("field", "=", "value");
+    ->orHaving("field", "value");
+    ->having("field LIKE '%value%'")
+    ->orHaving(function ($query) {
+        $query->orHaving("field", "value");
+        $query->having("field LIKE '%value%'");
+    });
+// query string:
+// HAVING field = value OR field = value AND field LIKE '%value%' OR (field = value AND field LIKE '%value%')
+```
 
+__Order By__
 
+```php
+$query->orderBy("field")->orderBy("field2", "desc");
+// ORDER BY field ASC, field2 DESC 
+```
+
+__Limit and Offset__
+
+```php
+$query->limit(10)->offset(5);
+// is the same as
+$query->limit(10, 5); 
+```
 
 ## Non query building API
 
-```php
-$query = new QueryBuilder([$pdo])
-setPdo($pdo)
-getPdo(): PDO
-
-setData($inputParams)
-getData(): array
-
-setRaw(string $query)
-toString(): string
-isValid(): bool   returns if the query is correct (needs PDO)
-
-prepare(): PDOStatement
-execute(array $inputParams) 
-// return success for update and delete
-// return update id or ids for insert
-// return results for select
-```
-
-
-
-## INSERT
+A PDO instance can be passed to the constructor or the `setPdo()` method.
 
 ```php
-$query->insert($inputParams)->inTable("posts")->execute(); // returns false on error, or the last inserted id
-// field name (and placeholder or ?) is inferred from data content
-
-$query->insert($fields)->inTable("posts")->execute($inputParams); // allows data to be non associative
-// update the query placholders based on data content 
-
-// insertOrReplace()
-
-
-insert()->table($table)->fields($fields)
-insert($fields)->table($table)
-insert($inputParams)->inTable($table)
+$pdo = new \PDO(...);
+$query = new QueryBuilder($pdo)
+$query->setPdo($pdo);
+$pdo = $query->getPdo();
 ```
 
-## SELECT
+Once a PDO object is set, you can check if the query is actually valid or get a PDO statement that would be returned to a call to `$pdo->prepare()`.
 
 ```php
-$query->table($table)->where(...)->select($inputParams); // get()
+$query = new QueryBuilder($pdo)
 
-$query->selectFrom($table)->fields()->where()->execute($inputParams);
+$query->select("field")->...
 
-select($conds)->inTable($table)->where($conds)->execute
-select($fields)->inTable($table)->where($conds)->execute($inputParams)
+if ($query->isValid()) {
+    $statement = $query->prepare(); // PDOStatement
+    $statement->bindValue(...);
+    ...
+}
 ```
 
-## UPDATE
+To get the generated query string, call `toString()` or just cast to string.
 
 ```php
-update($inputParams)->inTable($table)->where()->execute();
-update($fields)->inTable($table)->where()->execute($inputParams);
-
-table()->where()->update($inputParams)
+$query = new QueryBuilder()
+str = $query
+    ->select("field")
+    ->fromTable("table")
+    ->where("field", "value")
+    ->toString(); 
+// SELECT * FROM table WHERE field = value 
 ```
 
-## DELETE
+## Executing a query directly from the query builder object
+
+Instead of passing the query string to a database object or calling `prepare()`, you can call `execute()` on the query object.
+
+It returns:
+- `false` when the query is unsuccessful
+- `true` when the query is successful and the action is `INSERT OR REPLACE`, `UPDATE` or `DELETE`.  
+- the last inserted id when the action is `INSERT`.  
+- the PDOStatement object when the action is `SELECT`.  
 
 ```php
-$query->deleteFrom($table)->where($inputParams)->execute();
-$query->deleteFrom($table)->orWhere($inputParams)->execute();
-// $inputParams must be an assoc array
-$query->deleteWhere($cond)->inTable($table)->execute();
-
-table()->where("id", "?")->delete($cond)
-delete()->table()->where("id", "?")->execute()
+$query
+    ->delete()
+    ->table("table")
+    ->execute(); 
+// this deletes the whole table content (it doesn't drop the table)
 ```
 
+As `PDOStatement::execute()`, it accept an array of input parameters which can be
+- an associative array of named parameters
+- or an in-order array of parameters, when placeholders are ?
+ 
+Unlike `PDOStatement::execute()`, this array can also be an array of these two kinds fo array, which is useful to insert or update several rows with the same query.
+
+```php
+$query
+    ->insert("field")->insert("field2")
+    ->inTable("table")
+    ->execute([
+        "field" => "value",
+        "field2" => "value2",    
+    ]); 
+// INSERT INTO table (field, field2) VALUES (:field, :field2)
+
+// insert two rows:
+$query
+    ->insert("field")->insert("field2")
+    ->inTable("table")
+    ->execute([
+        ["value", "value2"],
+        ["value", "value2"],
+    ]); 
+// INSERT INTO table (field, field2) VALUES (?, ?), (?, ?)
+```
+
+When all the fields can be inferred from the input params, it is optional to pass them to the action method.
+
+```php
+$query
+    ->insert()
+    ->inTable("table")
+    ->execute([
+        [
+            "field" => "value",
+            "field2" => "value2",    
+        ],
+        [
+            "field" => "value",
+            "field2" => "value2",    
+        ],    
+    ]); 
+// INSERT INTO table (field, field2) VALUES (?, ?), (?, ?)
+```
+
+When that's the case, you can also pass the input param to the action method (and nothing to the execute method)
+
+```php
+$data = [
+    [
+        "field" => "value",
+        "field2" => "value2",    
+    ],
+    [
+        "field" => "value",
+        "field2" => "value2",    
+    ],    
+];
+
+$query->insert($data)->inTable("table")->execute();
+```
+
+This also works for updates:
+
+```php
+$data = [
+    "field" => "value",
+    "field2" => "value2",    
+];
+
+$query->update($data)->inTable("table")->where("id", 1)->execute();
+// UPDATE table SET field = :field, field2 = :field2 WHERE id = 1
+```

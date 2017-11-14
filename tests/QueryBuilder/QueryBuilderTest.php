@@ -292,10 +292,10 @@ class QueryBuilderTest extends TestCase
             ->offset(5);
 
         $expected = "SELECT field as field2, field as field3, otherField FROM test "
-            ."JOIN otherTable ON field = value "
-            ."WHERE field LIKE %value OR field IS NOT NULL "
+            ."JOIN otherTable ON field = 'value' "
+            ."WHERE field LIKE '%value' OR field IS NOT NULL "
             ."GROUP BY field "
-            ."HAVING field = value OR field2 = value2 "
+            ."HAVING field = 'value' OR field2 = 'value2' "
             ."ORDER BY field DESC LIMIT 10 OFFSET 5";
         $this->assertSame($expected, $query->toString());
     }

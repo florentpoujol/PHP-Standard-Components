@@ -4,11 +4,6 @@ namespace StdCmp\QueryBuilder;
 
 class QueryBuilder
 {
-    /**
-     * @var \PDO
-     */
-    protected $pdo;
-
     public function __construct(\PDO $pdo = null)
     {
         $this->pdo = $pdo;
@@ -29,6 +24,9 @@ class QueryBuilder
      */
     protected $fields = [];
 
+    /**
+     * @param string|string[] $fields
+     */
     public function insert($fields = null, string $actionType = null): self
     {
         $this->action = $actionType ?: self::ACTION_INSERT;
@@ -48,6 +46,9 @@ class QueryBuilder
         return $this;
     }
 
+    /**
+     * @param string|string[] $fields
+     */
     public function insertOrReplace($fields = null): self
     {
         return $this->insert($fields, self::ACTION_INSERT_REPLACE);
@@ -82,6 +83,9 @@ class QueryBuilder
             ") VALUES " . substr($rows, 0, -2);
     }
 
+    /**
+     * @param string|string[] $fields
+     */
     public function update($fields = null): self
     {
         return $this->insert($fields, self::ACTION_UPDATE);
@@ -115,6 +119,9 @@ class QueryBuilder
         return $this;
     }
 
+    /**
+     * @param string|string[] $fields
+     */
     public function select($fields = null, string $alias = null): self
     {
         $this->action = self::ACTION_SELECT;
@@ -145,7 +152,7 @@ class QueryBuilder
         $query .= $this->buildWhereQueryString();
         $query .= $this->buildGroupByQueryString();
         $query .= $this->buildHavingQueryString();
-        $query .= $this->orderBy;
+        $query .= $this->buildOrderByQueryString();
         $query .= $this->limit;
         $query .= $this->offset;
 
@@ -174,7 +181,6 @@ class QueryBuilder
 
     protected $join = [];
     protected $lastJoinId = -1;
-    protected $tempOn;
     protected $onClauses = []; // on clauses by join id
     // unlike where and having
     // on is an array or conditional arrays
@@ -221,7 +227,10 @@ class QueryBuilder
         return $this->join($tableName, "FULL");
     }
 
-    public function on($field, string $sign = null, $value = null, $cond = "AND"): self
+    /**
+     * @param string|callable $field
+     */
+    public function on($field, string $sign = null, string $value = null, string $cond = "AND"): self
     {
         if (! isset($this->onClauses[$this->lastJoinId])) {
             $this->onClauses[$this->lastJoinId] = [];
@@ -247,7 +256,10 @@ class QueryBuilder
         return $where;
     }
 
-    public function where($field, string $sign = null, $value = null, $cond = "AND"): self
+    /**
+     * @param string|callable $field
+     */
+    public function where($field, string $sign = null, string $value = null, string $cond = "AND"): self
     {
         return $this->addConditionalClause($this->where, $field, $sign, $value, $cond);
     }
@@ -273,6 +285,10 @@ class QueryBuilder
         return $this->orWhere("$field IS NOT NULL");
     }
 
+    /**
+     * @param string|int $min
+     * @param string|int $max
+     */
     public function whereBetween(string $field, $min, $max): self
     {
         return $this->where("$field BETWEEN $min AND $max");
@@ -313,11 +329,20 @@ class QueryBuilder
 
     // order by, group by, having
 
-    protected $orderBy = "";
+    protected $orderBy = [];
+
+    protected function buildOrderByQueryString(): string
+    {
+        if (empty($this->orderBy)) {
+            return "";
+        }
+        return "ORDER BY " . implode(", ", $this->orderBy) . " ";
+    }
 
     public function orderBy(string $field, string $direction = "ASC"): self
     {
-        $this->orderBy = "ORDER BY $field $direction ";
+        $direction = strtoupper($direction);
+        $this->orderBy[] = "$field $direction";
         return $this;
     }
 
@@ -325,12 +350,15 @@ class QueryBuilder
 
     protected function buildGroupByQueryString(): string
     {
-        if (! empty($this->groupBy)) {
-            return "GROUP BY " . implode(", ", $this->groupBy) . " ";
+        if (empty($this->groupBy)) {
+            return "";
         }
-        return "";
+        return "GROUP BY " . implode(", ", $this->groupBy) . " ";
     }
 
+    /**
+     * @param string|string[] $fields
+     */
     public function groupBy($fields): self
     {
         if (is_string($fields)) {
@@ -346,10 +374,10 @@ class QueryBuilder
     protected function buildHavingQueryString(): string
     {
         $having = $this->buildConditionalQueryString($this->having);
-        if ($having !== "") {
-            $having = "HAVING $having ";
+        if ($having === "") {
+            return "";
         }
-        return $having;
+        return "HAVING $having ";
     }
 
     public function having(string $field, $sign = null, $value = null, string $cond = "AND"): self
@@ -366,7 +394,7 @@ class QueryBuilder
 
     protected $limit = "";
 
-    public function limit($limit, $offset = null): self
+    public function limit(int $limit, int $offset = null): self
     {
         $this->limit = "LIMIT $limit ";
         if ($offset !== null) {
@@ -377,7 +405,7 @@ class QueryBuilder
 
     protected $offset = "";
 
-    public function offset($offset): self
+    public function offset(int $offset): self
     {
         $this->offset = "OFFSET $offset ";
         return $this;
@@ -390,6 +418,18 @@ class QueryBuilder
         return $this->pdo->prepare($this->toString());
     }
 
+    /**
+     * @param array|null $inputParams
+     * - an associative array of named parameters
+     * - or an in-order array of parameters, when placeholders are ?
+     * - an array of these two kinds fo array, which is useful to insert or update several rows with the same query
+     *
+     * @return bool|\PDOStatement|string
+     * - `false` when the query is unsuccessful
+     * - `true` when the query is successful and the action is `INSERT OR REPLACE`, `UPDATE` or `DELETE`.
+     * - the last inserted id when the action is `INSERT`.
+     * - the PDOStatement object when the action is `SELECT`.
+     */
     public function execute(array $inputParams = null)
     {
         if ($inputParams !== null) {
@@ -487,7 +527,10 @@ class QueryBuilder
         return rtrim($str);
     }
 
-    protected function addConditionalClause(array &$clauses, $field, string $sign = null, $value = null, $cond = "AND"): self
+    /**
+     * @param string|callable $field
+     */
+    protected function addConditionalClause(array &$clauses, $field, string $sign = null, string $value = null, $cond = "AND"): self
     {
         $clause = [
             "cond" => $cond,
@@ -510,10 +553,10 @@ class QueryBuilder
             $clause["expr"] = $field;
         }
         elseif ($sign !== null && $value === null) {
-            $clause["expr"] = "$field = $sign";
+            $clause["expr"] = "$field = " . $this->escapeValue($sign);
         }
         elseif ($sign !== null && $value !== null) {
-            $clause["expr"] = "$field $sign $value";
+            $clause["expr"] = "$field $sign " . $this->escapeValue($value);
         }
 
         $clauses[] = $clause;
@@ -521,20 +564,38 @@ class QueryBuilder
         return $this;
     }
 
-    /**
-     * @var array
-     */
+    protected function escapeValue($value): string
+    {
+        if (
+            $this->pdo === null ||
+            $value === "?" ||
+            (is_string($value) && $value[0] === ":") // suppose named placeholder
+        ) {
+            return $value;
+        }
+
+        $quoted = $this->pdo->quote($value);
+        if ($quoted === false) {
+            return $value;
+        }
+        return $quoted;
+    }
+
     protected $inputParams = [];
     protected $fieldsFromInput = [];
     protected $inputIsAssoc = true; // set to true by default so that it generates named placeholder from fields name when the user has not supplied an inputParams
 
+    /**
+     * @param array $inputParams
+     * @see QueryBuilder::execute();
+     */
     protected function setInputParams(array $inputParams)
     {
         if (empty($inputParams)) {
             $this->inputIsAssoc = true;
             $this->inputParams = [];
             $this->fieldsFromInput = [];
-            return null;
+            return;
         }
 
         // get format of input
@@ -564,5 +625,15 @@ class QueryBuilder
         }
 
         $this->inputParams = $formattedInput;
+    }
+
+    /**
+     * @var \PDO
+     */
+    protected $pdo;
+
+    public function setPdo(\PDO $pdo)
+    {
+        $this->pdo = $pdo;
     }
 }
