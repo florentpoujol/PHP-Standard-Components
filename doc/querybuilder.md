@@ -230,7 +230,7 @@ To get the generated query string, call `toString()` or just cast to string.
 
 ```php
 $query = new QueryBuilder()
-str = $query
+$str = $query
     ->select("field")
     ->fromTable("table")
     ->where("field", "value")

@@ -109,46 +109,11 @@ class RouteTest extends TestCase
         $this->assertSame("fg6", $GLOBALS["globalFunction"]);
     }
 
-    function testOptionalSegment()
-    {
-        $target = function ($id, $slug = null) {
-            $GLOBALS["optional_id"] = $id;
-            $GLOBALS["optional_slug"] = $slug;
-        };
-
-        $router = new Router();
-
-        $route = new Route("get", "/{id}[/{slug}[/other]]", $target);
-        $router->addRoute($route);
-
-        $router->dispatch("get", "/7");
-        $this->assertSame("7", $GLOBALS["optional_id"]);
-        $this->assertSame(null, $GLOBALS["optional_slug"]);
-
-        $router->dispatch("get", "/8/abc");
-        $this->assertSame("8", $GLOBALS["optional_id"]);
-        $this->assertSame("abc", $GLOBALS["optional_slug"]);
-
-        $router->dispatch("get", "/9/def/other");
-        $this->assertSame("9", $GLOBALS["optional_id"]);
-        $this->assertSame("def", $GLOBALS["optional_slug"]);
-
-        // with optional argument value
-        $router = new Router();
-
-        $defaultParamValues = ["slug" => "ghi"];
-        $route = new Route("get", "/{id}[/{slug}]", $target, [], $defaultParamValues);
-        $router->addRoute($route);
-
-        $router->dispatch("get", "/10");
-        $this->assertSame("10", $GLOBALS["optional_id"]);
-        $this->assertSame("ghi", $GLOBALS["optional_slug"]);
-    }
-
     function testArgsConditions()
     {
         $target = function (int $id) {
             $GLOBALS["testargscond"] = $id;
+            return true;
         };
 
         $this->router = new Router();
@@ -172,19 +137,91 @@ class RouteTest extends TestCase
         $call = $this->router->dispatch("get", "/1234");
         $this->assertSame(false, $call);
         $this->assertSame(12, $GLOBALS["testargscond"]);
+
+        // test setting the optionality in the param conditions
+        $target = function ($id = null) {
+            $GLOBALS["testargscond2"] = $id;
+            return true;
+        };
+
+        $router = new Router();
+
+        $r = new Route("get", "/1/{id}", $target, ["id" => ".*"]);
+        $router->addRoute($r);
+
+        $router->dispatch("get", "/1/");
+        $this->assertSame(null, $GLOBALS["testargscond2"]);
+
+        $router->dispatch("get", "/1/951");
+        $this->assertSame("951", $GLOBALS["testargscond2"]);
+
+        $router->dispatch("get", "/1/azerty");
+        $this->assertSame("azerty", $GLOBALS["testargscond2"]);
+
+
+        $r = new Route("get", "/2/{id}", $target, ["id" => "|[a-z]+"]);
+        $router->addRoute($r);
+
+        $router->dispatch("get", "/2/");
+        $this->assertSame(null, $GLOBALS["testargscond2"]);
+
+        $call = $router->dispatch("get", "/2/753");
+        $this->assertSame(false, $call);
+        $this->assertSame(null, $GLOBALS["testargscond2"]);
+
+        $router->dispatch("get", "/2/qwerty");
+        $this->assertSame("qwerty", $GLOBALS["testargscond2"]);
     }
+
+    function testBracket()
+    {
+        // test setting the optionality in the param conditions
+        $target = function ($id = null) {
+            $GLOBALS["testargscond3"] = $id;
+            return true;
+        };
+
+        $router = new Router();
+
+        $r = new Route("get", "/3/[id]", $target);
+        $router->addRoute($r);
+
+        $router->dispatch("get", "/3/");
+        $this->assertSame(null, $GLOBALS["testargscond3"]);
+
+        $router->dispatch("get", "/3/951");
+        $this->assertSame("951", $GLOBALS["testargscond3"]);
+
+        $router->dispatch("get", "/3/azerty");
+        $this->assertSame("azerty", $GLOBALS["testargscond3"]);
+
+
+        $r = new Route("get", "/4/[id]", $target, ["id" => "[a-z]+"]);
+        $router->addRoute($r);
+
+        $router->dispatch("get", "/4/");
+        $this->assertSame(null, $GLOBALS["testargscond3"]);
+
+        $call = $router->dispatch("get", "/4/753");
+        $this->assertSame(false, $call);
+        $this->assertSame(null, $GLOBALS["testargscond3"]);
+
+        $router->dispatch("get", "/4/qwerty");
+        $this->assertSame("qwerty", $GLOBALS["testargscond3"]);
+    }
+
 
     function testRouteGetUri()
     {
-        $route = new Route("get", "/{id}/{slug}", function(){});
+        $route = new Route("get", "/{id}/[slug]/[other]", function(){});
 
         $uri = $route->getUri();
-        $this->assertSame("/{id}/{slug}", $uri);
+        $this->assertSame("/{id}/[slug]/[other]", $uri);
 
         $uri = $route->getUri(["id" => 123]);
-        $this->assertSame("/123/{slug}", $uri);
+        $this->assertSame("/123/", $uri);
 
         $uri = $route->getUri(["id" => 123, "slug" => "whatever"]);
-        $this->assertSame("/123/whatever", $uri);
+        $this->assertSame("/123/whatever/", $uri);
     }
 }

@@ -32,7 +32,6 @@ $session->get("key", "default");
 $session->delete("key");
 $session->deleteAll();
 
-$session->addFlashMessage("error", "error message"); // info, success
-// always returns an array, and delete the key from the session
-$messages = $session->getFlashMessages("error");
+$session->addFlashMessage("error", "error message");
+$messages = $session->getFlashMessages("error"); // always returns an array, and delete the key from the session
 ```

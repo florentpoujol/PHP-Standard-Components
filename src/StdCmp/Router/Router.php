@@ -14,7 +14,7 @@ class Router
      */
     public function addRoute($routeOrMethod, string $uri = null, callable $target = null)
     {
-        if (is_string($routeOrMethod)) {
+        if (!is_object($routeOrMethod)) {
             // $route is the method(s)
             $routeOrMethod = new Route($routeOrMethod, $uri, $target);
         }
@@ -30,11 +30,11 @@ class Router
         }
     }
 
-    public function dispatch(string $method = null, string $targetUri = null): bool
+    public function dispatch(string $method = null, string $uri = null)
     {
         if ($method === null) {
             $method = $_SERVER["REQUEST_METHOD"];
-            $targetUri = $_SERVER["REQUEST_URI"];
+            $uri = $_SERVER["REQUEST_URI"];
         }
         $method = strtolower($method);
 
@@ -45,25 +45,27 @@ class Router
 
         $routes = $this->routesByMethod[$method];
 
-        // get the matched route and values from the URL
-        $paramsFromUri = false; // is array when a match
+        // get the matched route
         $route = null;
+        $matchFound = false;
         foreach ($routes as $route) {
-            $paramsFromUri = $route->getParamsFromUri($method, $targetUri);
-            if ($paramsFromUri !== false) {
+            $matchFound = $route->match($method, $uri);
+            if ($matchFound) {
                 break;
             }
         }
-
-        if ($paramsFromUri === false) {
-            // no match
+        if (!$matchFound) {
             return false;
         }
-
-        // $paramsFromUri = $route->getMatchedValuesFromUri();
-        $callable = $route->getTarget();
+        // to prevent looping on all routes and matching them individually against the uri (which is the slowest)
+        // we could do a few things:
+        // - when routes have a non-regex prefix (like "/user/{id}"), they can be segregated by it
+        // - when regex is needed, we could use grouped and chunked regexes
+        //   see https://nikic.github.io/2014/02/18/Fast-request-routing-using-regular-expressions.html
 
         // get the parameters list based on the callable type
+        $callable = $route->getAction();
+
         $rFunc = null;
         if (is_string($callable)) {
             if (function_exists($callable)) {
@@ -75,8 +77,7 @@ class Router
             }
         }
         elseif (is_array($callable)) {
-            // ["class", "staticMethod"]
-            // [$object, "method"]
+            // ["class", "staticMethod"] [$object, "method"]
             $rFunc = new \ReflectionMethod($callable[0], $callable[1]);
         }
         elseif (is_object($callable)) {
@@ -93,23 +94,23 @@ class Router
         // this is needed because the callable's argument order
         // may not be the same in the uri
         $params = [];
-        $paramDefaultValues = $route->getParamDefaultValues();
+        $paramsFromUri = $route->getParamsFromUri($uri);
+        $paramDefaults = $route->getParamDefaults();
         foreach ($rParams as $rParam) {
             $name = $rParam->getName();
 
-            $value = null;
             if (isset($paramsFromUri[$name])) {
-                $value = $paramsFromUri[$name];
-            } elseif (isset($paramDefaultValues[$name])) {
-                $value = $paramDefaultValues[$name];
+                $params[] = $paramsFromUri[$name];
+            } elseif (isset($paramDefaults[$name])) {
+                $params[] = $paramDefaults[$name];
+            } else {
+                break;
+                // do not set it to null so that the arg isn't passed at all to the target
+                // and the callable applies the default value (hopefully) set in its signature
             }
-
-            $params[] = $value;
         }
 
         // finally call the target
-        $callable(...$params);
-
-        return true;
+        return $callable(...$params);
     }
 }

@@ -10,32 +10,32 @@ class Route
     protected $methods = [];
     protected $paramNames = [];
 
-    protected $uri = "";
+    protected $rawUri = "";
     protected $regexUri = "";
 
     /**
      * @var callable
      */
-    protected $target;
+    protected $action;
 
-    protected $paramConditions = [];
-    protected $paramDefaultValues = [];
+    protected $paramConstraints = [];
+    protected $paramDefaults = [];
 
     /**
      * @param string|string[] $method
      */
-    public function __construct($methods, string $uri, callable $target, array $paramConditions = [], array $paramDefaultValues = [])
+    public function __construct($methods, string $uri, callable $action, array $paramConditions = [], array $paramDefaultValues = [])
     {
         if (is_string($methods)) {
             $methods = [$methods];
         }
 
         $this->methods = array_map("strtolower", $methods);
-        $this->target = $target;
-        $this->paramDefaultValues = $paramDefaultValues;
+        $this->action = $action;
+        $this->paramDefaults = $paramDefaultValues;
 
         if ($paramConditions !== null) {
-            $this->paramConditions = $paramConditions;
+            $this->paramConstraints = $paramConditions;
         }
         $this->setUri($uri);
     }
@@ -48,25 +48,58 @@ class Route
     public function getUri(array $args = null): string
     {
         if ($args === null) {
-            return $this->uri;
+            return $this->rawUri;
         }
 
-        $uri = $this->uri;
+        $uri = $this->rawUri;
         foreach ($args as $name => $value) {
             $uri = str_replace('{' . $name . '}', $value, $uri);
+            $uri = str_replace("[$name]", $value, $uri);
         }
+
+        // suppose that the remaining placeholders are not needed
+        // so only return the uri up to the first bracket
+        $pos = strpos($uri, "[");
+        if ($pos !== false) {
+            $uri = substr($uri, 0, $pos);
+        }
+
         return $uri;
     }
 
     protected function setUri(string $uri)
     {
-        $this->uri = $uri;
+        $this->rawUri = $uri;
 
-        // look for optional segments
+        // render all slashes optional, if the uri has a placeholder
+        $pos = strpos($uri, "[");
+        if ($pos !== false) {
+            $subUri = substr($uri, $pos - 1); // part of the uri in which work on slashes
+            $uri = str_replace(
+                $subUri,
+                str_replace("/", "/?", $subUri),
+                $uri
+            );
+        }
+
+        // make sure the uri ends with an optional trailing slash
+        if (substr($uri, -2) !== "/?") {
+            $uri .= "/?";
+        }
+
+        // look for optional placeholder
         $matches = [];
-        // use a while loop because segments are nested and preg_match_all doesn't match within nested captures
-        while (preg_match("/\[(.+)\]/", $uri, $matches) === 1) {
-            $uri = str_replace($matches[0], "(?:$matches[1])?", $uri);
+        if (preg_match_all("/\[([^\]]+)\]/", $uri, $matches) > 0) {
+            foreach ($matches[1] as $id => $varName) {
+                $this->paramNames[] = $varName;
+
+                $constraint = "[^/&]+";
+                if (isset($this->paramConstraints[$varName])) {
+                    $constraint = $this->paramConstraints[$varName];
+                }
+
+                $uri = str_replace("[$varName]","($constraint)?", $uri);
+            }
         }
 
         // look for named placeholder
@@ -75,77 +108,66 @@ class Route
             foreach ($matches[1] as $id => $varName) {
                 $this->paramNames[] = $varName;
 
-                if (!isset($this->paramConditions[$varName])) {
-                    $this->paramConditions[$varName] = "[^/&]+";
+                $constraint = "[^/&]+";
+                if (isset($this->paramConstraints[$varName])) {
+                    $constraint = $this->paramConstraints[$varName];
                 }
 
-                $uri = str_replace(
-                    '{' . $varName . '}',
-                    "(" . $this->paramConditions[$varName] . ")",
-                    $uri
-                );
+                $uri = str_replace('{'.$varName.'}',"($constraint)", $uri);
             }
-        }
-
-        if ($uri[strlen($uri) - 1] === "/") {
-            // make trailing slash always optional
-            $uri .= "?";
         }
 
         $this->regexUri = $uri;
     }
 
-    /**
-     * @return callable
-     */
-    public function getTarget(): callable
+    public function getAction(): callable
     {
-        return $this->target;
+        return $this->action;
+    }
+
+    public function getParamConstraints(): array
+    {
+        return $this->paramConstraints;
+    }
+
+    public function getParamDefaults(): array
+    {
+        return $this->paramDefaults;
     }
 
     /**
-     * @return array
+     * Tell whether the route match the specified method and uri or not.
      */
-    public function getParamConditions(): array
+    function match(string $method, string $uri): bool
     {
-        return $this->paramConditions;
+         return !in_array(strtolower($method), $this->methods) ||
+             preg_match('~^' . $this->regexUri . '$~', $uri) === 1;
     }
 
     /**
-     * @return array
+     * Return the captured placeholders from the uri as an associative array.
+     * Missing placeholders from the uri are not present at all in the returned array.
      */
-    public function getParamDefaultValues(): array
+    public function getParamsFromUri(string $uri): array
     {
-        return $this->paramDefaultValues;
-    }
-
-    /**
-     * @return array|bool
-     */
-    public function getParamsFromUri(string $method, string $targetUri)
-    {
-        if (!in_array(strtolower($method), $this->methods)) {
-            return false;
-        }
-
         $matches = [];
-        if (preg_match('#^' . $this->regexUri . '$#', $targetUri, $matches) === 1) {
-            array_shift($matches);
-
-            $assocMatches = [];
-            foreach ($this->paramNames as $id => $name) {
-                // if the uri has optional segments that are missing from the target URI
-                // there will be less entries in matches than in paramNames
-                // so fill the blancks with null for now
-                // will be filled by default args
-                $assocMatches[$name] = null;
-                if (isset($matches[$id])) {
-                    $assocMatches[$name] = $matches[$id];
-                }
+        $assocMatches = [];
+        if (preg_match("~^" . $this->regexUri . "$~", $uri, $matches) === 1) {
+            if (count($matches) === 1) {
+                // no placeholder capture, just the whole uri match
+                return [];
             }
 
-            return $assocMatches;
+            array_shift($matches);
+            foreach ($this->paramNames as $id => $name) {
+                if ($matches[$id] === "") {
+                    // if the uri miss some optional placeholders
+                    // their captured value is empty string
+                    break;
+                }
+                $assocMatches[$name] = $matches[$id];
+            }
         }
-        return false;
+        return $assocMatches;
     }
 }
