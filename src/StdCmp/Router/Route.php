@@ -155,7 +155,7 @@ class Route
         if (preg_match("~^" . $this->regexUri . "$~", $uri, $matches) === 1) {
             if (count($matches) === 1) {
                 // no placeholder capture, just the whole uri match
-                return [];
+                return $assocMatches;
             }
 
             array_shift($matches);

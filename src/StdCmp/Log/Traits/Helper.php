@@ -9,18 +9,11 @@ trait Helper
      */
     protected $helpers = [];
 
-    /**
-     * @param callable $helper
-     * @return void
-     */
     public function addHelper(callable $helper)
     {
         $this->helpers[] = $helper;
     }
 
-    /**
-     * @return array
-     */
     public function getHelpers(): array
     {
         return $this->helpers;
@@ -28,7 +21,6 @@ trait Helper
 
     /**
      * @param callable[] $helpers
-     * @return void
      */
     public function setHelpers(array $helpers)
     {
@@ -44,12 +36,11 @@ trait Helper
 
     /**
      * Returns the record, altered by all successive processors or false if one filter has returned false.
-     * @param array $record
      * @return array|bool
      */
     public function processHelpers(array $record)
     {
-        foreach ($this->helpers as $key => $helper) {
+        foreach ($this->helpers as $id => $helper) {
             $returnedValue = $helper($record);
             if ($returnedValue === false) {
                 return false;
@@ -58,7 +49,7 @@ trait Helper
             $type = gettype($returnedValue);
             if ($type !== "boolean") {
                 if($type !== "array" || empty($returnedValue)) {
-                    throw new \UnexpectedValueException("Helper n°$key returned an empty array or a value of type '$type' instead of array.");
+                    throw new \UnexpectedValueException("Helper n°$id returned an empty array or a value of type '$type' instead of array.");
                 }
 
                 $record = $returnedValue;

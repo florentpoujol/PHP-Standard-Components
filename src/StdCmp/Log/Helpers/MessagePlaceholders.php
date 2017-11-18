@@ -12,10 +12,6 @@ class MessagePlaceholders
 {
     use Traits\PlaceholderReplacement;
 
-    /**
-     * @param array $record
-     * @return array
-     */
     public function __invoke(array $record): array
     {
         $msg = $record["message"];

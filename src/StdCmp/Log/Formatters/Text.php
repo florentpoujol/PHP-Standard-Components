@@ -11,7 +11,7 @@ class Text
     /**
      * @var string
      */
-    protected $text = "{timestamp}: {priority_name} ({priority}): {message} {context}\n";
+    protected $text = "{timestamp}: {level}: {message} {context}\n";
 
     /**
      * @param string|null $text The format of the string, with placeholders, to be returned to a writer.
@@ -23,10 +23,6 @@ class Text
         }
     }
 
-    /**
-     * @param array $record
-     * @return string
-     */
     public function __invoke(array $record): string
     {
         return $this->replacePlaceholders($this->text, $record);

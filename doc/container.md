@@ -1,5 +1,7 @@
 # Dependency Injection Container
 
+Implements PSR-11.
+
 Containers are in their simplest use a key/value store.
 
 Keys are service names and value an instance of one concrete implementation of such service.

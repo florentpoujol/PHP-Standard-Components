@@ -2,6 +2,8 @@
 
 namespace StdCmp\DI;
 
+use Psr\Container\ContainerInterface;
+
 class DIContainer implements ContainerInterface
 {
     /**
@@ -70,19 +72,17 @@ class DIContainer implements ContainerInterface
     }
 
     /**
-     * @param string $serviceName
-     * @return bool
+     * {@inheritdoc}
      */
-    public function has(string $serviceName): bool
+    public function has($serviceName)
     {
         return isset($this->cached[$serviceName]) || isset($this->services[$serviceName]);
     }
 
     /**
-     * @param string $serviceName
-     * @return mixed|null
+     * {@inheritdoc}
      */
-    public function get(string $serviceName)
+    public function get($serviceName)
     {
         if (isset($this->cached[$serviceName])) {
             return $this->cached[$serviceName];

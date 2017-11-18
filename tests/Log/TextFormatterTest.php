@@ -8,8 +8,7 @@ class TextFormatterTest extends TestCase
     public function testDefaultFormat()
     {
         $record = [
-            "priority" => 0,
-            "priority_name" => "emergency",
+            "level" => "emergency",
             "message" => "Julie, do the thing !",
             "context" => ["some" => "context"],
             "timestamp" => 123456789, // Thu, 29 Nov 1973 21:33:09 GMT
@@ -18,7 +17,7 @@ class TextFormatterTest extends TestCase
         $formatter = new Text();
 
         $output = $formatter($record);
-        $expected = '123456789: emergency (0): Julie, do the thing ! {"some":"context"} 
+        $expected = '123456789: emergency: Julie, do the thing ! {"some":"context"}
 ';
         $this->assertEquals($expected, $output);
     }
@@ -26,8 +25,7 @@ class TextFormatterTest extends TestCase
     public function testCustomLineFormat()
     {
         $record = [
-            "priority" => 0,
-            "priority_name" => "emergency",
+            "level" => "emergency",
             "message" => "Julie, do the thing !",
             "context" => ["thing" => "stuff"],
             "timestamp" => 123456789, // Thu, 29 Nov 1973 21:33:09 GMT

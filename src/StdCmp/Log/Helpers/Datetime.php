@@ -7,9 +7,6 @@ namespace StdCmp\Log\Helpers;
  */
 class Datetime
 {
-    /**
-     * @var string
-     */
     protected $datetimeFormat = "Y-m-d H:i:s";
 
     /**
@@ -18,7 +15,6 @@ class Datetime
     protected $timezone;
 
     /**
-     * @param string|null $datetimeFormat
      * @param string|\DateTimeZone|null $timeZone
      */
     public function __construct(string $datetimeFormat = null, $timezone = null)
@@ -34,20 +30,14 @@ class Datetime
             $timezone = new \DateTimeZone($timezone);
         }
         $this->timezone = $timezone;
-
     }
 
-    /**
-     * @param array $record
-     * @return array
-     */
     public function __invoke(array $record): array
     {
         $datetime = new \DateTime();
         $datetime->setTimestamp($record["timestamp"]);
         $datetime->setTimezone($this->timezone);
         $record["timestamp"] = $datetime->format($this->datetimeFormat);
-
         return $record;
     }
 }

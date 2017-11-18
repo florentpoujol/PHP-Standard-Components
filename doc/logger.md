@@ -1,8 +1,8 @@
 # Log `namespace StdCmp\Log`
 
-This Logging library provides standard, flexible and easily extensible facilities for logging information.
+This Logging library provides standard (implements PSR-3), flexible and easily extensible facilities for logging information.
 
-You register the information you want to log (a priority, a message and maybe some context) to a Logger object which pass the log record to a Writer, which writes it to a device (file, DB, ...).
+You register the information you want to log (a level, a message and maybe some context) to a Logger object which pass the log record to a Writer, which writes it to a device (file, DB, ...).
 
 Loggers may have several writers, to store the information on several devices.
 
@@ -43,14 +43,16 @@ Not passing an argument to the controller will require you to add helpers, write
 
 ## Logger
 
-To log an information, instantiate a (PSR-3 compliant) logger and call the `log(int priority, string $message[, array context = []])` method.  
-You can also call one of the shortcuts methods (nammed after the priority names).    
+To log an information, instantiate a logger and call the `log(string|int $level, string $message[, array $context = []])` method.  
+You can also call one of the shortcuts methods (named after the level names).    
 Ie: `debug(string $message[, array context = []])`.
 
 ```
 $logger = new Logger();
 
-$logger->log(LOG_WARNING, "OMG something is wrong");
+$logger->log(LogLevel::WARNING, "OMG something is wrong"); // LogLevel is Psr\Log\LogLevel
+// or 
+$logger->log(LOG_WARNING, "OMG something is wrong"); // use the built-in LOG_* constants
 // or
 $logger->warning("OMG something is {what}", ["what" => "really wrong"]); // with some context
 ```
@@ -58,32 +60,10 @@ $logger->warning("OMG something is {what}", ["what" => "really wrong"]); // with
 The log function creates a log record, that is processed by the other helpers. 
 Each log record is internally an array containing these top level keys.
 
-- priority (int)
-- priority_name (string)
+- level (string)
 - message (string)
 - context (array)
 - timestamp (int)
-
-### Priority
-
-Log priority constants are already defined in PHP. See https://secure.php.net/manual/en/function.syslog.php
-
-```
-LOG_EMERG   = 0;
-LOG_ALERT   = 1;
-LOG_CRIT    = 2;
-LOG_ERR     = 3;
-LOG_WARNING = 4;
-LOG_NOTICE  = 5;
-LOG_INFO    = 6;
-LOG_DEBUG   = 7;
-
-// The Logger class also define the following constant
-const PRORITY_NAMES = [
-    "emergency", "alert", "critical", "error",
-    "warning", "notice", "info", "debug"
-];
-```
 
 The logger has an optional list of helpers and at least one writer.
 
@@ -148,11 +128,11 @@ Ie a priority filter:
 ```
 // make the logger or writer work only if the priority is critical, alert or emergency
 $priorityHelper = function(array $record): bool {
-    return $record["priority"] <= LOG_CRIT;
-    // Remember that the priorities' numerical values are in reverse order as one would naturally expect: the lower the number, the higher the importance.
+    return in_array(["critical", "alert", "emergency"], $record["level"]);
+    // or
+    return array_search($record["level"], Logger::LEVELS) <= LOG_CRIT;
 }
 ```
-
 
 ## Writers
 
@@ -228,14 +208,14 @@ Formatters can be any callable. They are passed the record as parameters. They m
 
 The Text formatter returns a single string of the desired format, with all placeholders replaced by values found in the record.
 
-The default format is : "{timestamp} : {priority_name} : {message} {context}\n";
+The default format is : "{timestamp} : {level} : {message} {context}\n";
 
 Ie with some HTML: 
 ```
 $html = <<<EOL<h2>Log from website</h2>
 <ul>
   <li>{timestamp}</li>
-  <li>{prioity_name}</li>
+  <li>{level}</li>
 </ul>
 <p>{message}</p>
 EOL;

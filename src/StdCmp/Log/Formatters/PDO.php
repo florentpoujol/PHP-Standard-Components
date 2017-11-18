@@ -4,24 +4,15 @@ namespace StdCmp\Log\Formatters;
 
 class PDO
 {
-    /**
-     * @var array
-     */
-    protected $map;
+    protected $map = [];
 
-    /**
-     * @param array|null $map
-     * @internal param array $config
-     */
-    public function __construct(array $map = [])
+    public function __construct(array $map = null)
     {
-        $this->map = $map;
+        if ($map !== null) {
+            $this->map = $map;
+        }
     }
 
-    /**
-     * @param array $record
-     * @return array
-     */
     public function __invoke(array $record): array
     {
         if (empty($this->map)) {
@@ -55,11 +46,6 @@ class PDO
         ];
     }
 
-    /**
-     * @param array $record
-     * @param string $recordKey
-     * @return mixed
-     */
     protected function getRecordValue(array $record, string $recordKey)
     {
         $parts = explode(".", $recordKey);
@@ -79,9 +65,6 @@ class PDO
     /**
      * Build part of a SQL INSERT query suitable to be passed to PDO::prepare(), from the supplied data.
      * Ie: "(fieldName) VALUES (:fieldName)"
-     *
-     * @param array $data
-     * @return string
      */
     protected function buildQuery(array $data): string
     {

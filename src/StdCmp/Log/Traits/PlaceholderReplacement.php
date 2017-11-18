@@ -8,7 +8,7 @@ trait PlaceholderReplacement
      * Perform the recursive replacement of placeholders with the provided replacements in the input string.
      *
      * Placeholders must be surrounded by curly braces (ie: {placeholder}).
-     * The are replaced by the first matching value found in the replacement array.
+     * They are replaced by the first matching value found in the replacement array.
      * "{placeholder}" is replaced by "thevalue" when replacements = ["placeholder" => "thevalue"]
      *
      * Composite placeholder and nested replacements may be used:
@@ -20,7 +20,6 @@ trait PlaceholderReplacement
      * @param array $replacements
      * @param string $fullKey Only used for recursive calls
      *
-     * @throws \UnexpectedValueException when values are objects not implementing __tostring().
      * @return string
      */
     public function replacePlaceholders(string $input, array $replacements, string $baseKey = ""): string
@@ -36,7 +35,9 @@ trait PlaceholderReplacement
             $valueIsEmpty = empty($value);
 
             if (strpos($input, $placeholder) !== false) {
-                // placeholder for this key
+                // the placeholder is found in the input string
+                // time to process the value, maybe, and then do the replacement
+
                 if (is_object($value) && !method_exists($value, "__tostring")) {
                     $value = (array)$value;
                     $valueIsArray = true;
@@ -56,6 +57,7 @@ trait PlaceholderReplacement
             } elseif ($valueIsArray && !$valueIsEmpty) {
                 $input = $this->replacePlaceholders($input, $value, $fullKey);
             }
+            // value not array, or empty: just ignore
         }
 
         return $input;

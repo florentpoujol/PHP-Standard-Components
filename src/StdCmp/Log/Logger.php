@@ -2,11 +2,12 @@
 
 namespace StdCmp\Log;
 
+use Psr\Log\InvalidArgumentException;
 use StdCmp\Log\Traits;
 
 class Logger implements Interfaces\Logger
 {
-    use Traits\Helper;
+    use Traits\Helper, \Psr\Log\LoggerTrait;
 
     /**
      * @var callable[]
@@ -37,7 +38,7 @@ class Logger implements Interfaces\Logger
         $this->writers = [];
         foreach ($writers as $id => $writer) {
             if (!is_callable($writer)) {
-                throw new \UnexpectedValueException("Writer n°$id is a " . gettype($writer) . " instead of a callable.");
+                throw new \TypeError("Writer n°$id is a " . gettype($writer) . " instead of a callable.");
             }
 
             $this->writers[] = $writer;
@@ -60,20 +61,29 @@ class Logger implements Interfaces\Logger
     /**
      * Logs with an arbitrary priority.
      *
-     * @param int $priority
+     * @param string|int $level
      * @param string $message
      * @param array $context
      *
+     * @throws \InvalidArgumentException When the level is not one of the specified levels
      * @throws \LogicException when the logger has no writer.
      *
      * @return void
      */
-    public function log(int $priority, string $message, array $context = [])
+    public function log($level, $message, array $context = [])
     {
+        if (is_int($level)) {
+            $level = self::LEVELS[$level];
+        }
+
+        $level = strtolower($level);
+        if (!in_array($level, self::LEVELS)) {
+            throw new InvalidArgumentException("Log level is not one of " . implode(",", self::LEVELS));
+        }
+
         $record = [
-            "priority" => $priority,
-            "priority_name" => self::PRIORITY_NAMES[$priority],
-            "message" => $message,
+            "level" => $level,
+            "message" => (string)$message,
             "context" => $context,
             "timestamp" => time(),
         ];
@@ -85,7 +95,7 @@ class Logger implements Interfaces\Logger
 
         if (count($this->writers) <= 0) {
             $msg = "The logger has no writer.";
-            $msg .= " Message that was being logged with priority '$record[priority_name]': $message";
+            $msg .= " Message that was being logged with level '$record[level]': '$message'";
             throw new \LogicException($msg);
         }
 
@@ -94,69 +104,5 @@ class Logger implements Interfaces\Logger
                 return;
             }
         }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function emergency(string $message, array $context = [])
-    {
-        $this->log(LOG_EMERG, $message, $context);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function alert(string $message, array $context = [])
-    {
-        $this->log(LOG_ALERT, $message, $context);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function critical(string $message, array $context = [])
-    {
-        $this->log(LOG_CRIT, $message, $context);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function error(string $message, array $context = [])
-    {
-        $this->log(LOG_ERR, $message, $context);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function warning(string $message, array $context = [])
-    {
-        $this->log(LOG_WARNING, $message, $context);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function notice(string $message, array $context = [])
-    {
-        $this->log(LOG_NOTICE, $message, $context);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function info(string $message, array $context = [])
-    {
-        $this->log(LOG_INFO, $message, $context);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function debug(string $message, array $context = [])
-    {
-        $this->log(LOG_DEBUG, $message, $context);
     }
 }
