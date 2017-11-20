@@ -31,7 +31,7 @@ class FileTest extends TestCase
     public static function setUpBeforeClass()
     {
         $cache = new FileCache(self::$sDirPath);
-        $cache->deleteAll();
+        $cache->clear();
     }
 
     public static function tearDownAfterClass()
@@ -102,13 +102,13 @@ class FileTest extends TestCase
     {
         $cache = new FileCache($this->dirPath);
 
-        $cache->setValue("int", 123);
-        $cache->setValue("float", 12.3);
-        $cache->setValue("string", "a string");
-        $cache->setValue("bool", true);
-        $cache->setValue("callable", [$cache, "set"]);
-        $cache->setValue("object", $cache);
-        $cache->setValue("array", ["0", "one" => "one"]);
+        $cache->set("int", 123);
+        $cache->set("float", 12.3);
+        $cache->set("string", "a string");
+        $cache->set("bool", true);
+        $cache->set("callable", [$cache, "set"]);
+        $cache->set("object", $cache);
+        $cache->set("array", ["0", "one" => "one"]);
 
         $this->assertFileExists($this->dirPath . "int");
         $this->assertFileExists($this->dirPath . "float");
@@ -123,8 +123,8 @@ class FileTest extends TestCase
     {
         $cache = new FileCache($this->dirPath);
 
-        $cache->setValue("int", 123, 123);
-        $cache->setValue("float", 12.3, new \DateInterval("PT456S"));
+        $cache->set("int", 123, 123);
+        $cache->set("float", 12.3, new \DateInterval("PT456S"));
 
         $value = filemtime($this->dirPath . "int");
         $this->assertEquals(time() + 123, $value);
@@ -137,35 +137,35 @@ class FileTest extends TestCase
     {
         $cache = new FileCache($this->dirPath);
 
-        $value = $cache->getValue("int");
+        $value = $cache->get("int");
         $this->assertEquals(123, $value);
 
-        $value = $cache->getValue("float");
+        $value = $cache->get("float");
         $this->assertEquals(12.3, $value);
 
-        $value = $cache->getValue("string");
+        $value = $cache->get("string");
         $this->assertEquals("a string", $value);
 
-        $value = $cache->getValue("bool");
+        $value = $cache->get("bool");
         $this->assertEquals(true, $value);
 
-        $value = $cache->getValue("callable");
+        $value = $cache->get("callable");
         $this->assertEquals([$cache, "set"], $value);
 
-        $value = $cache->getValue("object");
+        $value = $cache->get("object");
         $this->assertEquals($cache, $value);
 
-        $value = $cache->getValue("array");
+        $value = $cache->get("array");
         $this->assertEquals(["0", "one" => "one"], $value);
 
-        $value = $cache->getValue("non_existant_key");
+        $value = $cache->get("non_existant_key");
         $this->assertEquals(null, $value);
 
         // with default value
-        $value = $cache->getValue("int", 456);
+        $value = $cache->get("int", 456);
         $this->assertEquals(123, $value);
 
-        $value = $cache->getValue("non_existant_key", 456);
+        $value = $cache->get("non_existant_key", 456);
         $this->assertEquals(456, $value);
     }
 
@@ -205,7 +205,7 @@ class FileTest extends TestCase
         $this->assertFileExists($this->dirPath . "object");
         $this->assertFileExists($this->dirPath . "array");
 
-        $cache->deleteAll();
+        $cache->clear();
 
         $this->assertFileNotExists($this->dirPath . "int");
         $this->assertFileNotExists($this->dirPath . "float");
@@ -228,13 +228,13 @@ class FileTest extends TestCase
 
     public function testSetItem()
     {
-        $this->cache->setItem(new CacheItem("item_int", 123));
-        $this->cache->setItem(new CacheItem("item_float", 12.3));
-        $this->cache->setItem(new CacheItem("item_string", "a string"));
-        $this->cache->setItem(new CacheItem("item_bool", false));
-        $this->cache->setItem(new CacheItem("item_callable", "FileTest::setUpBeforeClass"));
-        $this->cache->setItem(new CacheItem("item_object", $this->cache));
-        $this->cache->setItem(new CacheItem("item_array", ["zero", "one" => "one"]));
+        $this->cache->save(new CacheItem("item_int", 123));
+        $this->cache->save(new CacheItem("item_float", 12.3));
+        $this->cache->save(new CacheItem("item_string", "a string"));
+        $this->cache->save(new CacheItem("item_bool", false));
+        $this->cache->save(new CacheItem("item_callable", "FileTest::setUpBeforeClass"));
+        $this->cache->save(new CacheItem("item_object", $this->cache));
+        $this->cache->save(new CacheItem("item_array", ["zero", "one" => "one"]));
 
         $this->assertFileExists($this->dirPath . "item_int");
         $this->assertFileExists($this->dirPath . "item_float");
@@ -244,18 +244,18 @@ class FileTest extends TestCase
         $this->assertFileExists($this->dirPath . "item_object");
         $this->assertFileExists($this->dirPath . "item_array");
 
-        $this->assertEquals(123, $this->cache->getValue("item_int"));
-        $this->assertEquals(12.3, $this->cache->getValue("item_float"));
-        $this->assertEquals("a string", $this->cache->getValue("item_string"));
-        $this->assertEquals(false, $this->cache->getValue("item_bool"));
-        $this->assertEquals("FileTest::setUpBeforeClass", $this->cache->getValue("item_callable"));
-        $this->assertEquals($this->cache, $this->cache->getValue("item_object"));
-        $this->assertEquals(["one" => "one", "zero"], $this->cache->getValue("item_array"));
+        $this->assertEquals(123, $this->cache->get("item_int"));
+        $this->assertEquals(12.3, $this->cache->get("item_float"));
+        $this->assertEquals("a string", $this->cache->get("item_string"));
+        $this->assertEquals(false, $this->cache->get("item_bool"));
+        $this->assertEquals("FileTest::setUpBeforeClass", $this->cache->get("item_callable"));
+        $this->assertEquals($this->cache, $this->cache->get("item_object"));
+        $this->assertEquals(["one" => "one", "zero"], $this->cache->get("item_array"));
 
         // now with expiration
-        $this->cache->setItem(new CacheItem("item_int", 1234, 123)); // ttl
-        $this->cache->setItem(new CacheItem("item_float", 12.34, new \DateTime("+ 456 seconds")));
-        $this->cache->setItem(new CacheItem("item_string", "yet another value", new \DateTime("- 456 seconds"))); // time() - 456 seconds will actually set the expiration far in the future since it will be considered as a TTL and not a absolute TS
+        $this->cache->save(new CacheItem("item_int", 1234, 123)); // ttl
+        $this->cache->save(new CacheItem("item_float", 12.34, new \DateTime("+ 456 seconds")));
+        $this->cache->save(new CacheItem("item_string", "yet another value", new \DateTime("- 456 seconds"))); // time() - 456 seconds will actually set the expiration far in the future since it will be considered as a TTL and not a absolute TS
 
         $this->assertEquals(time() + 123, filemtime($this->dirPath . "item_int"));
         $this->assertEquals(time() + 456, filemtime($this->dirPath . "item_float"));
@@ -270,15 +270,15 @@ class FileTest extends TestCase
         $item = $this->cache->getItem("item_int");
         $this->assertInstanceOf(CacheItem::class, $item);
         $this->assertEquals("item_int", $item->getKey());
-        $this->assertEquals(1234, $item->getValue());
+        $this->assertEquals(1234, $item->get());
         $this->assertEquals(true, $item->isHit());
         $this->assertEquals(time() + 123, $item->getExpiration());
 
         $item = $this->cache->getItem("item_float");
         $this->assertInstanceOf(CacheItem::class, $item);
         $this->assertEquals("item_float", $item->getKey());
-        $this->assertEquals(12.34, $item->getValue());
-        $this->assertEquals(12.34, $item->getValue(34.12)); // default value ignored
+        $this->assertEquals(12.34, $item->get());
+        $this->assertEquals(12.34, $item->get(34.12)); // default value ignored
         $this->assertEquals(true, $item->isHit());
         $this->assertEquals(time() + 456, $item->getExpiration());
 
@@ -288,7 +288,7 @@ class FileTest extends TestCase
         $item = $this->cache->getItem("item_string");
         $this->assertInstanceOf(CacheItem::class, $item);
         $this->assertEquals("item_string", $item->getKey());
-        $this->assertEquals(null, $item->getValue());
+        $this->assertEquals(null, $item->get());
         $this->assertEquals(false, $item->isHit());
         $this->assertEquals(null, $item->getExpiration());
 
@@ -296,7 +296,7 @@ class FileTest extends TestCase
         $item = $this->cache->getItem("item_non_existant");
         $this->assertInstanceOf(CacheItem::class, $item);
         $this->assertEquals("item_non_existant", $item->getKey());
-        $this->assertEquals(null, $item->getValue());
+        $this->assertEquals(null, $item->get());
         $this->assertEquals(false, $item->isHit());
         $this->assertEquals(null, $item->getExpiration());
     }
@@ -317,16 +317,16 @@ class FileTest extends TestCase
         $this->assertArrayHasKey("item_string", $values);
         $this->assertArrayHasKey("item_non_existant", $values);
 
-        $this->assertEquals(1234, $values["item_int"]->getValue());
-        $this->assertEquals(12.34, $values["item_float"]->getValue());
-        $this->assertEquals(null, $values["item_string"]->getValue());
-        $this->assertEquals("the default value", $values["item_string"]->getValue("the default value"));
-        $this->assertEquals(null, $values["item_non_existant"]->getValue());
+        $this->assertEquals(1234, $values["item_int"]->get());
+        $this->assertEquals(12.34, $values["item_float"]->get());
+        $this->assertEquals(null, $values["item_string"]->get());
+        $this->assertEquals("the default value", $values["item_string"]->get("the default value"));
+        $this->assertEquals(null, $values["item_non_existant"]->get());
     }
 
-    public function testSetValues()
+    public function testSetMultiple()
     {
-        $this->cache->deleteAll();
+        $this->cache->clear();
 
         $values = [
             "int_multiple" => 789,
@@ -339,7 +339,7 @@ class FileTest extends TestCase
         $this->assertFileNotExists($this->dirPath . "string_multiple");
         $this->assertFileNotExists($this->dirPath . "non_existant_key");
 
-        $this->cache->setValues($values);
+        $this->cache->setMultiple($values);
 
         $this->assertFileExists($this->dirPath . "int_multiple");
         $this->assertFileExists($this->dirPath . "float_multiple");
@@ -348,7 +348,7 @@ class FileTest extends TestCase
 
     }
 
-    public function testGetValues()
+    public function testGetMultiple()
     {
         $keys = [
             "int_multiple",
@@ -357,7 +357,7 @@ class FileTest extends TestCase
             "non_existant_key"
         ];
 
-        $values = $this->cache->getValues($keys);
+        $values = $this->cache->getMultiple($keys);
 
         $this->assertArrayHasKey("int_multiple", $values);
         $this->assertArrayHasKey("float_multiple", $values);
@@ -384,7 +384,7 @@ class FileTest extends TestCase
         $this->assertFileExists($this->dirPath . "string_multiple");
         $this->assertFileNotExists($this->dirPath . "non_existant_key");
 
-        $values = $this->cache->deleteAll($keys);
+        $values = $this->cache->deleteMultiple($keys);
 
         $this->assertFileNotExists($this->dirPath . "int_multiple");
         $this->assertFileNotExists($this->dirPath . "float_multiple");
@@ -394,7 +394,7 @@ class FileTest extends TestCase
 
     public function testAddWithTag()
     {
-        $this->cache->deleteAll();
+        $this->cache->clear();
 
         // setup
         $prop = new \ReflectionProperty(FileCache::class, "keysByTags");
@@ -407,7 +407,7 @@ class FileTest extends TestCase
         $item = new CacheItem("int", 123);
         $item->addTag("a_tag");
 
-        $this->cache->setItem($item);
+        $this->cache->save($item);
 
         $keysByTags = $prop->getValue($this->cache);
         $this->assertArrayHasKey("a_tag", $keysByTags);
@@ -417,7 +417,7 @@ class FileTest extends TestCase
         $item = new CacheItem("float", 12.3);
         $item->setTags(["a_tag", "another_tag"]);
 
-        $this->cache->setItem($item);
+        $this->cache->save($item);
 
         $keysByTags = $prop->getValue($this->cache);
         $this->assertArrayHasKey("a_tag", $keysByTags);

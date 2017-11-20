@@ -33,13 +33,13 @@ class ItemTest extends TestCase
         $item = new CacheItem("the_key", "the_value", $time + 123);
         $expected = new \DateTime();
         $expected->setTimestamp($time + 123);
-        $this->assertEquals($expected, $item->expireAt());
+        $this->assertEquals($expected, $item->expiresAt());
 
         // ttl
         $item = new CacheItem("the_key", "the_value", 123);
         $expected = new \DateTime();
         $expected->setTimestamp($time + 123);
-        $this->assertEquals($expected, $item->expireAt());
+        $this->assertEquals($expected, $item->expiresAt());
 
         // DateTime
         $dt = new \DateTime();
@@ -48,7 +48,7 @@ class ItemTest extends TestCase
 
         $expected = new \DateTime();
         $expected->setTimestamp($time + 123);
-        $this->assertEquals($expected, $item->expireAt());
+        $this->assertEquals($expected, $item->expiresAt());
 
         // DateInterval
         $dt = new \DateInterval("PT123S");
@@ -57,7 +57,7 @@ class ItemTest extends TestCase
 
         $expected = new \DateTime();
         $expected->setTimestamp($time + 123);
-        $this->assertEquals($expected->format(DATE_W3C), $item->expireAt()->format(DATE_W3C));
+        $this->assertEquals($expected->format(DATE_W3C), $item->expiresAt()->format(DATE_W3C));
         // note when just comparing the datetime object, there is a difference of less than a second
     }
 }

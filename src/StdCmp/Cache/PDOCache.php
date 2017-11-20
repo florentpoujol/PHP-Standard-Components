@@ -2,22 +2,23 @@
 
 namespace StdCmp\Cache;
 
-use StdCmp\Cache\Interfaces\CacheItem as CacheItemInterface;
-use StdCmp\Cache\Interfaces\ItemAwareCache;
-use StdCmp\Cache\Interfaces\SimpleCache;
-use StdCmp\Cache\Interfaces\TagAwareCache;
+use Psr\Cache\CacheItemInterface;
+use Psr\Cache\CacheItemPoolInterface;
+use Psr\SimpleCache\CacheInterface;
 
-class PDOCache implements SimpleCache, ItemAwareCache, TagAwareCache
+class PDOCache implements CacheInterface, CacheItemPoolInterface, TagAwareCache
 {
     /**
      * @var \PDO
      */
     protected $pdo;
 
-    /**
-     * @var string
-     */
     private $tableName = "pdo_cache";
+
+    /**
+     * @var CacheItemInterface[]
+     */
+    protected $deferredItems = [];
 
     public function __construct(\PDO $pdo, string $tableName = null)
     {
@@ -29,13 +30,9 @@ class PDOCache implements SimpleCache, ItemAwareCache, TagAwareCache
         $this->createTable();
     }
 
-    // CommonCache
+    // SimpleCache
 
-    /**
-     * @param string $key
-     * @return bool
-     */
-    public function has(string $key): bool
+    public function has($key): bool
     {
         $this->validateKey($key);
         $stmt = "SELECT key FROM $this->tableName WHERE key = ? AND (expiration IS NULL OR expiration > " . time() . ")";
@@ -43,27 +40,13 @@ class PDOCache implements SimpleCache, ItemAwareCache, TagAwareCache
         return $query->fetch() !== false;
     }
 
-    /**
-     * @param string $key
-     * @return bool
-     */
-    public function delete(string $key): bool
+    public function delete($key): bool
     {
-        return $this->deleteAll([$key]);
+        return $this->deleteMultiple([$key]);
     }
 
-    /**
-     * Delete the keys specified in the array.
-     * Delete the whole cache only if no array is provided.
-     *
-     * @param string[]|null $keys
-     * @return bool Returns true only if all of the keys have been properly deleted.
-     */
-    public function deleteAll(array $keys = null): bool
+    public function deleteMultiple($keys): bool
     {
-        if ($keys === null) {
-            return $this->pdo->query("DELETE FROM $this->tableName")->execute();
-        }
         if (empty($keys)) {
             return true;
         }
@@ -76,25 +59,18 @@ class PDOCache implements SimpleCache, ItemAwareCache, TagAwareCache
         return $this->doQuery(substr($stmt, 0, -4), $keys, true);
     }
 
-    // SimpleCache
-
-    /**
-     * @param string $key
-     * @param mixed|null $defaultValue
-     * @return mixed
-     */
-    public function getValue(string $key, $defaultValue = null)
+    public function clear(): bool
     {
-        $values = $this->getValues([$key], $defaultValue);
+        return $this->pdo->query("DELETE FROM $this->tableName")->execute();
+    }
+
+    public function get($key, $defaultValue = null)
+    {
+        $values = $this->getMultiple([$key], $defaultValue);
         return $values[$key];
     }
 
-    /**
-     * @param array $keys
-     * @param mixed|null $defaultValue
-     * @return array An associative array: key => value
-     */
-    public function getValues(array $keys, $defaultValue = null): array
+    public function getMultiple($keys, $defaultValue = null): array
     {
         if (empty($keys)) {
             return [];
@@ -129,23 +105,12 @@ class PDOCache implements SimpleCache, ItemAwareCache, TagAwareCache
         return $values;
     }
 
-    /**
-     * @param string $key
-     * @param mixed $value
-     * @param int|\DateInterval|null $expiration
-     * @return bool
-     */
-    public function setValue(string $key, $value, $expiration = null): bool
+    public function set($key, $value, $expiration = null): bool
     {
-        return $this->setValues([$key => $value], $expiration);
+        return $this->setMultiple([$key => $value], $expiration);
     }
 
-    /**
-     * @param array $values An associative array of key => value
-     * @param int|\DateInterval|array|null $expiration When on array: key =>
-     * @return bool Returns true only if all the values have properly been saved.
-     */
-    public function setValues(array $values, $expiration = null): bool
+    public function setMultiple($values, $expiration = null): bool
     {
         if (empty($values)) {
             return false;
@@ -165,22 +130,31 @@ class PDOCache implements SimpleCache, ItemAwareCache, TagAwareCache
         return $this->doQuery(substr($stmt, 0,  -2), $data, true);
     }
 
-    // ItemAwareCache interface
+    // CacheItemPoolInterface
 
-    /**
-     * @param string $key
-     * @return CacheItemInterface
-     */
-    public function getItem(string $key): CacheItemInterface
+    public function hasItem($key): bool
+    {
+        return $this->has($key);
+    }
+
+    public function deleteItem($key): bool
+    {
+        return $this->delete($key);
+    }
+
+    public function deleteItems(array $keys): bool
+    {
+        return $this->deleteMultiple($keys);
+    }
+
+    // clear() already defined above, as part of Psr\SimpleCache\CacheInterface
+
+    public function getItem($key): CacheItemInterface
     {
         return $this->getItems([$key])[$key];
     }
 
-    /**
-     * @param string[] $keys
-     * @return array An associative array: key => CacheItem
-     */
-    public function getItems(array $keys): array
+    public function getItems(array $keys = []): array
     {
         if (empty($keys)) {
             return [];
@@ -202,20 +176,15 @@ class PDOCache implements SimpleCache, ItemAwareCache, TagAwareCache
         return  $items;
     }
 
-    /**
-     * @param CacheItem $item
-     * @return bool
-     */
-    public function setItem(CacheItemInterface $item): bool
+    public function save(CacheItemInterface $item): bool
     {
-        return $this->setItems([$item]);
+        return $this->saveMultiple([$item]);
     }
 
     /**
-     * @param array $items
-     * @return bool Returns true only if all the items have properly been saved.
+     * @param array|CacheItemInterface[] $items
      */
-    public function setItems(array $items): bool
+    public function saveMultiple(array $items): bool
     {
         if (empty($items)) {
             return false;
@@ -229,7 +198,7 @@ class PDOCache implements SimpleCache, ItemAwareCache, TagAwareCache
 
             $stmt .= "(?, ?, ?,  ?), ";
             $data[] = $key;
-            $data[] = serialize($item->getValue());
+            $data[] = serialize($item->get());
 
             $expiration = $item->getExpiration();
             if ($expiration !== null) {
@@ -249,21 +218,29 @@ class PDOCache implements SimpleCache, ItemAwareCache, TagAwareCache
         return $this->doQuery(substr($stmt, 0,  -2), $data, true);
     }
 
+    public function saveDeferred(CacheItemInterface $item): bool
+    {
+        $this->deferredItems[] = $item;
+        return true;
+    }
+
+    public function commit(): bool
+    {
+        $items = $this->deferredItems;
+        $this->deferredItems = [];
+        return $this->saveMultiple($items);
+    }
+
     // TagAwareCache interface
 
     /**
-     * @param string $tag
-     * @return CacheItemInterface
+     * @return CacheItemInterface[]
      */
     public function getItemsWithTag(string $tag): array
     {
         return $this->_getItems(["%$tag%"], "tags");
     }
 
-    /**
-     * @param string $tag
-     * @return bool
-     */
     public function hasTag(string $tag): bool
     {
         $stmt = "SELECT key FROM $this->tableName WHERE tags LIKE ?";
@@ -271,17 +248,13 @@ class PDOCache implements SimpleCache, ItemAwareCache, TagAwareCache
         return $query->fetch() !== false;
     }
 
-    /**
-     * @param string $tag
-     * @return bool
-     */
     public function deleteTag(string $tag): bool
     {
         $stmt = "SELECT key FROM $this->tableName WHERE tags LIKE ?";;
         $query = $this->doQuery($stmt, ["%$tag%"]);
         $entries = $query->fetchAll();
         $keys = array_column($entries, "key");
-        return $this->deleteAll($keys);
+        return $this->deleteMultiple($keys);
     }
 
     // protected methods

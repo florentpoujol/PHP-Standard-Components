@@ -2,9 +2,9 @@
 
 namespace StdCmp\Cache;
 
-use \StdCmp\Cache\Interfaces\CacheItem as CacheItemInterface;
+use Psr\Cache\CacheItemInterface;
 
-class CacheItem implements CacheItemInterface
+class CacheItem implements CacheItemInterface, TagAwareItem
 {
     /**
      * @var string
@@ -45,26 +45,17 @@ class CacheItem implements CacheItemInterface
         }
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getKey(): string
     {
         return $this->key;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function setKey(string $key)
     {
         $this->key = $key;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getValue($defaultValue = null)
+    public function get($defaultValue = null)
     {
         if ($defaultValue !== null && !$this->isHit()) {
             return $defaultValue;
@@ -72,30 +63,34 @@ class CacheItem implements CacheItemInterface
         return $this->value;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function setValue($value)
+    public function set($value)
     {
         $this->value = $value;
+        return $this;
     }
 
-    /**
-     * {@inheritdoc}
-     */
+    public function expiresAt($expiration)
+    {
+        $this->setExpiration($expiration);
+        return $this;
+    }
+
+    public function expiresAfter($time)
+    {
+        $this->setExpiration($time);
+        return $this;
+    }
+
     public function getExpiration()
     {
         return $this->expiration;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function setExpiration($expiration)
     {
         if ($expiration instanceof \DateInterval) {
             $expiration = $expiration->format("%s");
-        } elseif ($expiration instanceof \DateTime) {
+        } elseif ($expiration instanceof \DateTimeInterface) {
             $expiration = $expiration->getTimestamp();
         }
 
@@ -111,9 +106,6 @@ class CacheItem implements CacheItemInterface
         $this->expiration = $expiration;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function isHit(bool $isHit = null): bool
     {
         if ($isHit !== null) {
@@ -122,9 +114,6 @@ class CacheItem implements CacheItemInterface
         return $this->isHit;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function addTag(string $tag)
     {
         if (!in_array($tag, $this->tags)) {
@@ -132,17 +121,11 @@ class CacheItem implements CacheItemInterface
         }
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function setTags(array $tags)
     {
         $this->tags = $tags;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getTags(): array
     {
         return $this->tags;

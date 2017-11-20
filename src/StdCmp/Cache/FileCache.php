@@ -2,31 +2,27 @@
 
 namespace StdCmp\Cache;
 
-use StdCmp\Cache\Interfaces\ItemAwareCache;
-use StdCmp\Cache\Interfaces\SimpleCache;
-use StdCmp\Cache\Interfaces\TagAwareCache;
+use Psr\SimpleCache\CacheInterface;
+use Psr\Cache\CacheItemPoolInterface;
+use Psr\Cache\CacheItemInterface;
 
-class FileCache implements SimpleCache, ItemAwareCache, TagAwareCache
+class FileCache implements CacheInterface, CacheItemPoolInterface, TagAwareCache
 {
     /**
      * @var string
      */
     protected $dirPath;
 
-    /**
-     * @var int
-     */
     protected $defaultTTL = 31536000; // 1 year
 
-    /**
-     * @var array
-     */
     protected $keysByTags = [];
 
-    /**
-     * @var string
-     */
     protected $tagsFileName = "filecache.tags";
+
+    /**
+     * @var CacheItemInterface[]
+     */
+    protected $deferredItems = [];
 
     /**
      * @param string $dirPath
@@ -60,27 +56,24 @@ class FileCache implements SimpleCache, ItemAwareCache, TagAwareCache
 
     public function __destruct()
     {
+        if (!empty($this->deferredItems)) {
+            $this->commit();
+        }
         if (!empty($this->keysByTags)) {
             $this->writeTagsFile();
         }
     }
 
-    // CommonCache
+    // SimpleCache
 
-    /**
-     * {@inheritdoc}
-     */
-    public function has(string $key): bool
+    public function has($key): bool
     {
         $this->validateKey($key);
         $path = $this->getPath($key);
         return file_exists($path) && $this->isNotExpired($path);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function delete(string $key): bool
+    public function delete($key): bool
     {
         $this->validateKey($key);
         $path = $this->getPath($key);
@@ -88,17 +81,8 @@ class FileCache implements SimpleCache, ItemAwareCache, TagAwareCache
         return @unlink($path);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function deleteAll(array $keys = null): bool
+    public function deleteMultiple($keys): bool
     {
-        if ($keys === null) {
-            $this->keysByTags = [];
-            $this->deleteDir($this->dirPath);
-            return mkdir($this->dirPath, 0777, true); // will return false is dir exists, meaning that deleteDir() has had an issue
-        }
-
         $success = true;
         foreach ($keys as $key) {
             $success = $this->delete($key) && $success;
@@ -106,12 +90,14 @@ class FileCache implements SimpleCache, ItemAwareCache, TagAwareCache
         return $success; // returns false if any of the delete call has returned false
     }
 
-    // SimpleCache
+    public function clear()
+    {
+        $this->keysByTags = [];
+        $this->deleteDir($this->dirPath);
+        return mkdir($this->dirPath, 0777, true); // will return false is dir exists, meaning that deleteDir() has had an issue
+    }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getValue(string $key, $defaultValue = null)
+    public function get($key, $defaultValue = null)
     {
         $this->validateKey($key);
         $path = $this->getPath($key);
@@ -129,22 +115,16 @@ class FileCache implements SimpleCache, ItemAwareCache, TagAwareCache
         return $value;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getValues(array $keys, $defaultValue = null): array
+    public function getMultiple($keys, $defaultValue = null): array
     {
         $values = [];
         foreach ($keys as $key) {
-            $values[$key] = $this->getValue($key, $defaultValue);
+            $values[$key] = $this->get($key, $defaultValue);
         }
         return $values;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function setValue(string $key, $value, $expiration = null): bool
+    public function set($key, $value, $expiration = null): bool
     {
         $this->validateKey($key);
         $path = $this->getPath($key);
@@ -158,30 +138,41 @@ class FileCache implements SimpleCache, ItemAwareCache, TagAwareCache
         return touch($path, $this->expirationToTimestamp($expiration));
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function setValues(array $values, $expiration = null): bool
+    public function setMultiple($values, $expiration = null): bool
     {
         $success = true;
         foreach ($values as $key => $value) {
-            $success = $this->setValue($key, $value, $expiration) && $success;
+            $success = $this->set($key, $value, $expiration) && $success;
         }
         return $success;
     }
 
-    // ItemAwareCache
+    // CacheItemPoolInterface
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getItem(string $key): Interfaces\CacheItem
+    public function hasItem($key): bool
+    {
+        return $this->has($key);
+    }
+
+    public function deleteItem($key): bool
+    {
+        return $this->delete($key);
+    }
+
+    public function deleteItems(array $keys): bool
+    {
+        return $this->deleteMultiple($keys);
+    }
+
+    // clear() already defined above, as part of Psr\SimpleCache\CacheInterface
+
+    public function getItem($key): CacheItemInterface
     {
         $this->validateKey($key);
         $item = new CacheItem($key);
 
         if ($this->has($key)) {
-            $item->setValue($this->getValue($key));
+            $item->set($this->get($key));
             $item->isHit(true);
             $item->setTags($this->getTagsForKey($key));
 
@@ -194,10 +185,7 @@ class FileCache implements SimpleCache, ItemAwareCache, TagAwareCache
         return $item;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getItems(array $keys): array
+    public function getItems(array $keys = []): array
     {
         $items = [];
         foreach ($keys as $key) {
@@ -206,34 +194,41 @@ class FileCache implements SimpleCache, ItemAwareCache, TagAwareCache
         return $items;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function setItem(Interfaces\CacheItem $item): bool
+    public function save(CacheItemInterface $item): bool
     {
         $key = $item->getKey();
         $this->validateKey($key);
-        $this->addKeyToTags($key, $item->getTags());
-        return $this->setValue($key, $item->getValue(), $item->getExpiration());
+        $expiration = $item->getExpiration(); // how are we supposed to get the expiration date with just the CacheItemInterface ??
+        if ($item instanceof TagAwareItem) {
+            $this->addKeyToTags($key, $item->getTags());
+        }
+        return $this->set($key, $item->get(), $expiration);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function setItems(array $items): bool
+    public function saveMultiple($items): bool
     {
         $success = true;
         foreach ($items as $item) {
-            $success = $this->setItem($item) && $success;
+            $success = $this->save($item) && $success;
         }
         return $success;
     }
 
+    public function saveDeferred(CacheItemInterface $item): bool
+    {
+        $this->deferredItems[] = $item;
+        return true;
+    }
+
+    public function commit(): bool
+    {
+        $items = $this->deferredItems;
+        $this->deferredItems = [];
+        return $this->saveMultiple($items);
+    }
+
     // TagAwareCache
 
-    /**
-     * {@inheritdoc}
-     */
     public function getItemsWithTag(string $tag): array
     {
         $keys = [];
@@ -246,9 +241,6 @@ class FileCache implements SimpleCache, ItemAwareCache, TagAwareCache
         return $this->getItems($keys);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function hasTag(string $tag): bool
     {
         if (isset($this->keysByTags[$tag])) {
@@ -257,14 +249,11 @@ class FileCache implements SimpleCache, ItemAwareCache, TagAwareCache
         return false;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function deleteTag(string $tag): bool
     {
         $success = true;
         if (isset($this->keysByTags[$tag])) {
-            $success = $this->deleteAll($this->keysByTags[$tag]) && $success;
+            $success = $this->deleteMultiple($this->keysByTags[$tag]) && $success;
             unset($this->keysByTags[$tag]);
         }
         return $success;
@@ -400,10 +389,7 @@ class FileCache implements SimpleCache, ItemAwareCache, TagAwareCache
         }
     }
 
-    /**
-     * @param string $key
-     */
-    protected function getTagsForKey(string $key)
+    protected function getTagsForKey(string $key): array
     {
         $tags = [];
         foreach ($this->keysByTags as $tag => $keys) {

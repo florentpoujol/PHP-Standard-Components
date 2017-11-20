@@ -1,14 +1,17 @@
+# Cache
 
+Both PSR-6 and PSR-16 compliant, with tag support.
 
-Simple Use
+## Simple Use
+
 ```
 $cache = new FileCache("/path/to/dir"); // default expiration + 1 years
 $cache = new PDOCache($pdo, "my_cache_table_name"); // no default expiration
 $cache = new ArrayCache(); // no expiration support
 
-$cache->setValue("the_key", "the value");
-$cache->setValue("the_key", "the value", 3600); // ttl
-$cache->setValues([
+$cache->set("the_key", "the value");
+$cache->set("the_key", "the value", 3600); // ttl
+$cache->setMultiple([
     "the_key" => "a value",
     "another_key" => 123
 ], 3600);
@@ -17,9 +20,9 @@ $cache->setValues([
 
 $cache->has("the_key"); // return false if  not existing or expired
 
-$cache->getValue("the_key"); // reeturn default if not existing or expired
-$cache->getValue("the_key", "the default value"); // reeturn default if not existing or expired
-$values = $cache->getValues(["the_key", "another_key]);
+$cache->get("the_key"); // reeturn default if not existing or expired
+$cache->get("the_key", "the default value"); // reeturn default if not existing or expired
+$values = $cache->getMultiple(["the_key", "another_key]);
 /* $values :
 [
     "the_key" => "a value",
@@ -28,34 +31,36 @@ $values = $cache->getValues(["the_key", "another_key]);
 */
 
 $cache->delete("the_key");
-$cache->deleteAll(["the_key", "another_key]);
-$cache->deleteAll(); // delete all the keys
+$cache->deleteMultiple(["the_key", "another_key]);
+$cache->clear(); // delete all the keys
 ```
 
-Working with Items
+## Working with Items
+
 ```
-$item = new Cache\Item("key", "value", $expiration);
+$item = new CacheItem("key", "value", $expiration);
 // or
 $item->setKey("key");
-$item->setValue("value");
-$item->setExpiration(3600);
+$item->set("value");
+$item->expiresAfter(3600);
 
-$cache->setItem($item);
-$cahce->setItems([$item, $item2]);
+$cache->save($item);
+$cahce->saveMultiple([$item, $item2]);
 
 $item = $cache->getItem("key");
 // always return an object, with at least the key set
 
-$value = $item->getValue();
-$value = $item->getValue("a default value"); // get default if isHit() === false
+$value = $item->get();
+$value = $item->get("a default value"); // get default if isHit() === false
 
 $bool = $item->isHit(); // returns false if key wasn't found or is expired. In that case, value is also null
 $timestamp = $item->getExpiration(); // null when nothing set (FileCache always has expiration)
 ```
 
-Working with tags
+## Working with tags
+
 ```
-$item = new Cache\Item(...);
+$item = new CacheItem(...);
 
 $item->addTag("the_tag");
 $item->setTags(["the_tag", "another_tag"]);
@@ -63,7 +68,7 @@ $item->setTags(["the_tag", "another_tag"]);
 $tags = $item->getTags();
 
 // use normal set item
-$cache->setItem($item);
+$cache->save($item);
 
 $cache->hasTag("the_tag");
 

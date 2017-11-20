@@ -46,17 +46,17 @@ class PDOTest extends TestCase
 
     public function testSetValue()
     {
-        $success = $this->cache->setValue("int", 123, 123);
+        $success = $this->cache->set("int", 123, 123);
         $this->assertEquals(true, $success);
 
-        $success = $this->cache->setValue("float", 12.3, 123);
+        $success = $this->cache->set("float", 12.3, 123);
         $this->assertEquals(true, $success);
 
         // without expiration
-        $success = $this->cache->setValue("bool", true);
+        $success = $this->cache->set("bool", true);
         $this->assertEquals(true, $success);
 
-        $success = $this->cache->setValue("string", "a string");
+        $success = $this->cache->set("string", "a string");
         $this->assertEquals(true, $success);
 
         // manually expire the "float" key
@@ -88,61 +88,61 @@ class PDOTest extends TestCase
 
     public function testGetValue()
     {
-        $value = $this->cache->getValue("int");
+        $value = $this->cache->get("int");
         $this->assertEquals(123, $value);
 
-        $value = $this->cache->getValue("float");
+        $value = $this->cache->get("float");
         $this->assertEquals(null, $value); // expired
 
-        $value = $this->cache->getValue("bool");
+        $value = $this->cache->get("bool");
         $this->assertEquals(true, $value);
 
-        $value = $this->cache->getValue("string");
+        $value = $this->cache->get("string");
         $this->assertEquals("a string", $value);
 
-        $value = $this->cache->getValue("non_existant_key");
+        $value = $this->cache->get("non_existant_key");
         $this->assertEquals(null, $value);
     }
 
     public function testOverrideValue()
     {
         $this->assertEquals(false, $this->cache->has("float"));
-        $this->assertEquals(null, $this->cache->getValue("float"));
+        $this->assertEquals(null, $this->cache->get("float"));
 
         // override value and reset the expiration time
-        $value = $this->cache->setValue("float", 1.23);
+        $value = $this->cache->set("float", 1.23);
         $this->assertEquals(true, $value);
-        $this->assertEquals(1.23, $this->cache->getValue("float"));
-        $this->assertEquals(1.23, $this->cache->getValue("float"));
+        $this->assertEquals(1.23, $this->cache->get("float"));
+        $this->assertEquals(1.23, $this->cache->get("float"));
     }
 
     public function testDeleteMultiple()
     {
-        $this->cache->setValue("int", 123);
-        $this->cache->setValue("int2", 123);
+        $this->cache->set("int", 123);
+        $this->cache->set("int2", 123);
 
         $this->assertEquals(true, $this->cache->has("int"));
         $this->assertEquals(true, $this->cache->has("int2"));
         $this->assertEquals(true, $this->cache->has("bool"));
 
-        $value = $this->cache->deleteAll(["int", "int2", "bool"]);
+        $this->cache->deleteMultiple(["int", "int2", "bool"]);
 
         $this->assertEquals(false, $this->cache->has("int"));
         $this->assertEquals(false, $this->cache->has("int2"));
         $this->assertEquals(false, $this->cache->has("bool"));
     }
 
-    public function testDeleteAll()
+    public function testClear()
     {
-        $this->cache->setValue("int", 123);
-        $this->cache->setValue("int2", 123);
-        $this->cache->setValue("float1", 12.3);
+        $this->cache->set("int", 123);
+        $this->cache->set("int2", 123);
+        $this->cache->set("float1", 12.3);
 
         $this->assertEquals(true, $this->cache->has("int"));
         $this->assertEquals(true, $this->cache->has("int2"));
         $this->assertEquals(true, $this->cache->has("float1"));
 
-        $this->cache->deleteAll();
+        $this->cache->clear();
 
         $this->assertEquals(false, $this->cache->has("int"));
         $this->assertEquals(false, $this->cache->has("int2"));
@@ -154,9 +154,9 @@ class PDOTest extends TestCase
         $this->assertEquals(0, count($entries));
     }
 
-    public function testSetValues()
+    public function testSetMultiple()
     {
-        $this->cache->deleteAll();
+        $this->cache->clear();
 
         $this->assertEquals(false, $this->cache->has("int"));
         $this->assertEquals(false, $this->cache->has("float"));
@@ -167,13 +167,13 @@ class PDOTest extends TestCase
             "int" => 456,
             "float" => 456.789,
         ];
-        $this->cache->setValues($values);
+        $this->cache->setMultiple($values);
 
         $values = [
             "string" => "another string",
             "bool" => false,
         ];
-        $this->cache->setValues($values, 123);
+        $this->cache->setMultiple($values, 123);
 
         $this->assertEquals(true, $this->cache->has("int"));
         $this->assertEquals(true, $this->cache->has("float"));
@@ -181,7 +181,7 @@ class PDOTest extends TestCase
         $this->assertEquals(true, $this->cache->has("bool"));
     }
 
-    function testGetValues()
+    function testGetMultiple()
     {
         $this->assertEquals(true, $this->cache->has("float"));
 
@@ -195,7 +195,7 @@ class PDOTest extends TestCase
         $this->assertEquals(false, $this->cache->has("non_existant_key"));
 
         $keys = ["int", "float", "string", "bool", "non_existant_key"];
-        $values = $this->cache->getValues($keys, "default value");
+        $values = $this->cache->getMultiple($keys, "default value");
 
         $this->assertEquals(5, count($values));
         $this->assertArrayHasKey("int", $values);
@@ -213,17 +213,17 @@ class PDOTest extends TestCase
 
     function testSetItem()
     {
-        $this->cache->deleteAll();
+        $this->cache->clear();
 
         $item = new CacheItem("int_item", 798, 123);
-        $this->cache->setItem($item);
+        $this->cache->save($item);
 
-        $value = $this->cache->getValue("int_item");
+        $value = $this->cache->get("int_item");
         $this->assertEquals(798, $value);
 
         $item = new CacheItem("float_item", 798.123);
-        $this->cache->setItem($item);
-        $value = $this->cache->getValue("float_item");
+        $this->cache->save($item);
+        $value = $this->cache->get("float_item");
         $this->assertEquals(798.123, $value);
     }
 
@@ -234,11 +234,11 @@ class PDOTest extends TestCase
             new CacheItem("bool_item", true)
         ];
 
-        $this->cache->setItems($items);
+        $this->cache->saveMultiple($items);
 
-        $value = $this->cache->getValue("string_item");
+        $value = $this->cache->get("string_item");
         $this->assertEquals("an item value", $value);
-        $value = $this->cache->getValue("bool_item");
+        $value = $this->cache->get("bool_item");
         $this->assertEquals(true, $value);
     }
 
@@ -272,17 +272,17 @@ class PDOTest extends TestCase
 
         $item = new CacheItem("non_existant_key");
         $this->assertEquals($item, $items["non_existant_key"]);
-        $this->assertEquals(null, $item->getValue());
+        $this->assertEquals(null, $item->get());
         $this->assertEquals(null, $item->getExpiration());
     }
 
     function testSetItemWithTag()
     {
-        $this->cache->deleteAll();
+        $this->cache->clear();
 
         $item = new CacheItem("int_item", 798, 123);
         $item->addTag("a_tag");
-        $this->cache->setItem($item);
+        $this->cache->save($item);
 
         $query = $this->pdo->query("SELECT * FROM pdo_cache WHERE key = 'int_item'");
         $entry = $query->fetch();
@@ -294,7 +294,7 @@ class PDOTest extends TestCase
         $item = new CacheItem("float_item", 798.123);
         $item->addTag("a_tag");
         $item->addTag("another_tag");
-        $this->cache->setItem($item);
+        $this->cache->save($item);
 
         $query = $this->pdo->query("SELECT * FROM pdo_cache WHERE key = 'float_item'");
         $entry = $query->fetch();
