@@ -3,24 +3,22 @@
 namespace Tests\Event;
 
 use PHPUnit\Framework\TestCase;
-use StdCmp\Event\EventEmitter;
+use StdCmp\Event\Event;
+use StdCmp\Event\EventManager;
 use StdCmp\Event\EventInterface;
 
 class EventEmitterTest extends TestCase
 {
-    /**
-     * @var EventEmitter
-     */
     protected static $semitter;
 
     /**
-     * @var EventEmitter
+     * @var EventManager
      */
     protected $emitter;
 
     static function setUpBeforeClass()
     {
-        self::$semitter = new EventEmitter();
+        self::$semitter = new EventManager();
     }
 
     function setUp()
@@ -28,30 +26,29 @@ class EventEmitterTest extends TestCase
         $this->emitter = self::$semitter;
     }
 
-    function onUserLogout($eventName, $user)
+    function onUserLogout(EventInterface $event)
     {
-        $this->assertEquals("user.logout", $eventName);
-        $this->assertEquals("florent", $user->name);
+        $this->assertEquals("user.logout", $event->getName());
+        $this->assertEquals("florent", $event->getTarget()->name);
     }
 
-    public static function onUserLogoutStatic($eventName, $user)
+    public static function onUserLogoutStatic($event)
     {
-        self::assertEquals("user.logout", $eventName);
-        self::assertEquals("florent", $user->name);
+        self::assertEquals("user.logout", $event->getName());
+        self::assertEquals("florent", $event->getTarget()->name);
     }
 
     function testAddListener()
     {
-        $this->emitter->addListener("user.login", function ($eventName, $data) {
-            $this->assertEquals("user.login", $eventName);
-            $this->assertEquals("florent", $data["name"]);
+        $this->emitter->attach("user.login", function ($event) {
+            $this->assertEquals("user.login", $event->getName());
+            $this->assertEquals("florent", $event->getParams()["aParam"]);
         });
 
-        $this->emitter->addListener("user.logout", [$this, "onUserLogout"]);
-        // $this->emitter->addListener("user.logout", "EventEmitterTest::onUserLogoutStatic");
-        $this->emitter->addListener("user.logout", [EventEmitterTest::class, "onUserLogoutStatic"]);
+        $this->emitter->attach("user.logout", [$this, "onUserLogout"]);
+        $this->emitter->attach("user.logout", [EventEmitterTest::class, "onUserLogoutStatic"]);
 
-        $prop = new \ReflectionProperty(EventEmitter::class, "listeners");
+        $prop = new \ReflectionProperty(EventManager::class, "listeners");
         $prop->setAccessible(true);
         $listeners = $prop->getValue($this->emitter);
 
@@ -67,19 +64,19 @@ class EventEmitterTest extends TestCase
 
     function testAddListenerWithPriority()
     {
-        $this->emitter->addListener("priority", function ($eventName, $data) {
-            $data->events[] = $eventName . "10";
+        $this->emitter->attach("priority", function ($event) {
+            $event->getTarget()->events[] = $event->getName(). "10";
         }, 10);
 
-        $this->emitter->addListener("priority", function ($eventName, $data) {
-            $data->events[] = $eventName . "-10";
+        $this->emitter->attach("priority", function ($event) {
+            $event->getTarget()->events[] = $event->getName(). "-10";
         }, -10);
 
-        $this->emitter->addListener("priority", function ($eventName, $data) {
-            $data->events[] = $eventName . "1";
+        $this->emitter->attach("priority", function ($event) {
+            $event->getTarget()->events[] = $event->getName(). "1";
         }, 1);
 
-        $prop = new \ReflectionProperty(EventEmitter::class, "listeners");
+        $prop = new \ReflectionProperty(EventManager::class, "listeners");
         $prop->setAccessible(true);
         $listeners = $prop->getValue($this->emitter);
 
@@ -106,13 +103,19 @@ class EventEmitterTest extends TestCase
 
     function testEmit()
     {
-        $this->emitter->emit("user.login", ["name" => "florent"]);
+        $this->emitter->trigger("user.login", null, ["aParam" => "florent"]);
 
-        $event = new \stdClass;
-        $event->name = "florent";
-        $this->emitter->emit("user.logout", $event);
+        $event = new Event();
+        $event->setName("user.logout");
+        $object = new \StdClass();
+        $event->setTarget($object);
+        $object->name = "florent";
+        $this->emitter->trigger($event);
 
-        $this->emitter->emit("priority", $this);
+        $event = new Event();
+        $event->setName("priority");
+        $event->setTarget($this);
+        $this->emitter->trigger("priority", $this);
         $priority = ["priority10", "priority1", "priority-10"];
         $this->assertEquals($priority, $this->events);
     }
@@ -122,61 +125,56 @@ class EventEmitterTest extends TestCase
         $subscriber = new EventSubscriber();
         $this->emitter->addSubscriber($subscriber);
 
-        $this->emitter->emit("sub.prio.multimethod");
-        $this->emitter->emit("sub.prio.method");
-        $this->emitter->emit("sub.method");
+        $this->emitter->trigger("sub.method");
 
         $data = [
-            "sub.prio.multimethod1",
-            "sub.prio.multimethod1",
-            "sub.prio.multimethod-5",
-            "sub.prio.method-10",
-            "sub.method0"
+            "sub.method0",
+            "sub.method-10",
         ];
         $this->assertEquals($data, $subscriber->data);
     }
 
     function testEventObject()
     {
-        $this->emitter = new EventEmitter();
+        $this->emitter = new EventManager();
 
         $listenerCalled = false;
 
-        $this->emitter->addListener("event-object.name", function (EventInterface $event) use (&$listenerCalled) {
+        $this->emitter->attach("event-object.name", function (EventInterface $event) use (&$listenerCalled) {
             $this->assertInstanceOf(EventInterface::class, $event);
             $this->assertInstanceOf(EventSomething::class, $event);
-            $this->assertNotEmpty(EventInterface::class, $event->data);
-            $this->assertEquals("the event data", $event->data[0]);
+            $this->assertNotEmpty(EventInterface::class, $event->getParams());
+            $this->assertEquals("the event data", $event->getParams()[0]);
             $listenerCalled = true;
         });
 
         $event = new EventSomething("event-object.name");
-        $event->data[0] = "the event data";
+        $event->setParams(["the event data"]);
 
-        $this->emitter->emit($event);
+        $this->emitter->trigger($event);
         $this->assertEquals(true, $listenerCalled);
     }
 
     function testPropagationStopped()
     {
-        $this->emitter = new EventEmitter();
+        $this->emitter = new EventManager();
 
         $firstListenerCalled = false;
         $secondListenerCalled = false;
-        $this->emitter->addListener("return.false",
-            function (...$arg) use (&$firstListenerCalled) {
+        $this->emitter->attach("return.false",
+            function ($event) use (&$firstListenerCalled) {
                 $firstListenerCalled = true;
-                return false;
+                $event->stopPropagation();
             }
         );
-        $this->emitter->addListener("return.false",
-            function (...$arg) use (&$secondListenerCalled) {
+        $this->emitter->attach("return.false",
+            function (EventInterface $event) use (&$secondListenerCalled) {
                 $secondListenerCalled = true; // should not be called
             }
         );
 
 
-        $this->emitter->emit("return.false");
+        $this->emitter->trigger("return.false");
         $this->assertEquals(true, $firstListenerCalled);
         $this->assertEquals(false, $secondListenerCalled);
 
@@ -184,19 +182,19 @@ class EventEmitterTest extends TestCase
         $event = new EventSomething("eventobject");
         $firstListenerCalled = false;
         $secondListenerCalled = false;
-        $this->emitter->addListener("eventobject",
+        $this->emitter->attach("eventobject",
             function (EventSomething $event) use (&$firstListenerCalled) {
                 $firstListenerCalled = true;
-                $event->stopPropagation();
+                $event->stopPropagation(true);
             }
         );
-        $this->emitter->addListener("eventobject",
+        $this->emitter->attach("eventobject",
             function ($event) use (&$secondListenerCalled) {
                 $secondListenerCalled = true; // should not be called
             }
         );
 
-        $this->emitter->emit($event);
+        $this->emitter->trigger($event);
         $this->assertEquals(true, $firstListenerCalled);
         $this->assertEquals(false, $secondListenerCalled);
     }

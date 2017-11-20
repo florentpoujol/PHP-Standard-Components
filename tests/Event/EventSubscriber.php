@@ -2,6 +2,7 @@
 
 namespace Tests\Event;
 
+use StdCmp\Event\EventManagerInterface;
 use StdCmp\Event\SubscriberInterface;
 
 class EventSubscriber implements SubscriberInterface
@@ -9,40 +10,24 @@ class EventSubscriber implements SubscriberInterface
     /**
      * @return array
      */
-    public function getSubscribedEvents(): array
+    public function getSubscribedEvents(EventManagerInterface $manager): array
     {
+        $manager->attach("sub.method", [$this, "onMinus10Method"], -10);
+
         return [
-            "sub.method" => "onMethod",
-            "sub.prio.method" => [-10 => "onMinus10Method"],
-            "sub.prio.multimethod" => [
-                -5 => "onMinus5Method",
-                1 => [
-                    "on1Method",
-                    [$this, "on1Method"]
-                ],
-            ],
+            "sub.method" => "onMethod"
         ];
     }
 
     public $data = [];
 
-    function onMinus10Method($eventName, $data)
+    function onMinus10Method($event)
     {
-        $this->data[] = $eventName . "-10";
+        $this->data[] = $event->getName() . "-10";
     }
 
-    function onMinus5Method($eventName, $data)
+    function onMethod($event)
     {
-        $this->data[] = $eventName . "-5";
-    }
-
-    function onMethod($eventName, $data)
-    {
-        $this->data[] = $eventName . "0";
-    }
-
-    function on1Method($eventName, $data)
-    {
-        $this->data[] = $eventName . "1";
+        $this->data[] = $event->getName() . "0";
     }
 }

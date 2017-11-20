@@ -1,104 +1,110 @@
-# Event Emitter
+# Event Manager
 
-## Listen for event
+PSR-14 compliant.
 
-The emitter holds a list of listener callable per event, with a priority for each to define in which order they are called.
+## Events
 
-Listeners receive the event name as first argument and the event data.
+An event is something that happens in your application. It is represented by a class that implements `EventInterface`.
 
-Listeners may return false to stop the propagation (stops subsequent listener to be called).
+As such, it usually contains a name, and optionally a target and some parameters.
+
+The name is usually "contained" in the name of the class that extends the base `Event` class.
+
+The target is expected to be an object relevant to the event, which give it some context.
+
+The parameters is an array of arbitrary data.
+
+## Attach listeners to events
+
+The manager holds a list of listener callable (callbacks) per event, with a priority for each to define in which order they are called.
+
+Listeners receive the event object as only argument.
+
+Listeners may call the `stopPropagation(true)` method on the event object to stops subsequent listeners to be called.
+
+Listeners may return non-null data. The manager's `trigger()` method will return the data returned by the last listener.
 
 ```
-$emitter = new EventEmitter();
+$manager = new EventManager();
 
-$emitter = new EventEmitter([
-    "event.name" => callable1,
-    "event.name2" => callable2
-]);
+$manager = new EventManager();
 
-// add listener
-$emitter->addListener("event.name", function(string $eventName, $data) {
+// attach a listener
+$manager->attach("event.name", function(EventInterface $event) {
     // do things
-    return false; // to stop propagation
+    $event->stopPropagation();
 });
-$emitter->addListener($eventName, $callable, $priority);
+
+$manager->attach($eventName, $callable, $priority);
 // $priority is numeric, the higher the sooner the event will be callled
 // default to 0
 // for the same priority, listeners are called in order they are added 
 
-$emitter->hasListener($eventName)
+// check if an event has at least one listener
+$manager->hasListener($eventName)
 
-$emitter->removeListener($eventName, callable)
-$emitter->removeListener(callable)
+// remove a listener
+$manager->detach($eventName, $callable)
 
-$emitter->removeListeners($eventName)
-$emitter->removeListeners() // remove all
+// remove all listeners for the specified event
+$manager->clearListeners($eventName)
 ```
 
-## Emit events
+## Attach events in bulk
 
-$data can be anything  
-use an object to share data between listener
+The manager's `attachEvents()` method and constructor accept an associative array as its `events` argument.
 
+It must contain the event names as key and callables or array of callables as key.
+
+
+## Trigger events
+
+The event is always represented by an object implementing `EventInterface`, which is passed to all listeners.
+
+The manager's `trigger()` method accept either an event instance, or an event name and optionally a target and parameters.
+ 
+Ie: triggering an event with some params but no target.
 ```
-$emitter->emit("event.name", $data);
-```
+$event = new Event();
+$event->setName("event.name");
+$event->setParams(["data" => "something"]);
+$manager->trigger($event);
 
+// or (the event object will be created by the trigger method)
+$manager->trigger("event.name", null, ["data" => "something"]);
+```
 
 ## Subscriber
 
-A class that has a `getSubscribedEvents()` method  which return a list of event+listener.  
-Since we are in the context of an object, listener can be a method name.
+Subscribers are classes that have a `getSubscribedEvents()` method which return an associative array that must contain the event names as key and callables or array of callables as key.
+  
+But since we are in the context of an object, values can be standard strings instead of callable. They are then assumed to be a subscriber's method name.
+
+The method receive the event manager instance so that you can directly attach some events with a priority other than the default one.
 
 ```
 class subscriber 
 {
-    public function onSomething($eventName, $data)
+    public function onSomething(EventInterface $event)
     {
         // do something
     }
     
-    public function getSubscribedEvents()
+    public function getSubscribedEvents(EventManagerInterface $manager)
     {
         return [
-            "event.something" => "onSomething", // assume priority of 0
-            "event.somethingelse" => [10 => "onSomethingElse"] // priority of 10
+            "event.something" => "onSomething",
             "event.anotherthing" => [
-                -5 => [
-                    "anotherthing1",
-                    "anotherthing2"
-                ]
+                "anotherMethod",
+                function ($event) { // regular callable
+                    //
+                }
             ]
         ];        
     }
 }
 
 $subscriber = new Subscriber();
-// save somewhere...
-$emitter->addSubscriber($subscriber);
 
-// event's data can be an object of course
-// but the event itself can be an object
+$manager->addSubscriber($subscriber);
 ```
-
-Event class
-
-Event data can already be a class but a whole event can be represented by a class.
-
-```
-class Event {
-
-    function getName(): string;
-    
-    function stopPropagation(bool $stop);
-    
-    function isPropagationStopped(): bool;
-}
-
-$event = new Event("event.name");
-
-$emitter->emit(event);
-```
-
-In that case, the listeners only receive the event.
-Call `$event->getName()` for the event name.

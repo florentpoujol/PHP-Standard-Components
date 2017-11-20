@@ -2,15 +2,13 @@
 
 namespace Tests\Event;
 
-use StdCmp\Event\AbstractEvent;
+use StdCmp\Event\Event;
 
-class EventSomething extends AbstractEvent
+class EventSomething extends Event
 {
 
     public function __construct(string $name)
     {
         $this->name = $name;
     }
-
-    public $data = [];
 }
