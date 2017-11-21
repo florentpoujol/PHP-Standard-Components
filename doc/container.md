@@ -10,7 +10,7 @@ Ie: mailer => new PhpMailer();
 They are used to prevent hardcoding dependencies to concrete implementation within your code.
 
 Ie:
-```
+```php
 //  instead of doing this:
 class HardcodedDependency 
 {

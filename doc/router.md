@@ -27,11 +27,11 @@ $action = function($id) {
     // or process data from the form and update user in DB
 };
 
-$route = new Route(["get", "post"], "/users/{$id}/edit", $action);
+$route = new Route(["get", "post"], "/users/{id}/edit", $action);
 
 // same route but the id must be numerical 
 $paramConstraints = ["id" => "[0-9]+"];
-$route = new Route(["get", "post"], "/users/{$id}/edit", $action, $paramConstraints);
+$route = new Route(["get", "post"], "/users/{id}/edit", $action, $paramConstraints);
 ```
 
 Placeholders may also be considered optional. Just use square bracket instead of curly ones.  
@@ -49,7 +49,7 @@ $paramConstraints = [
 
 $paramDefaults = ["action" => "show"];
 
-$route = new Route(["get", "post"], "/users/{$id}/[action]", $action, $paramConstraints, $paramDefaults);
+$route = new Route(["get", "post"], "/users/{id}/[action]", $action, $paramConstraints, $paramDefaults);
 ```
 
 When the route is `/users/1`, the value `show` will be passed to the action.

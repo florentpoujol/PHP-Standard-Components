@@ -24,7 +24,7 @@ Listeners may call the `stopPropagation(true)` method on the event object to sto
 
 Listeners may return non-null data. The manager's `trigger()` method will return the data returned by the last listener.
 
-```
+```php
 $manager = new EventManager();
 
 $manager = new EventManager();
@@ -64,7 +64,7 @@ The event is always represented by an object implementing `EventInterface`, whic
 The manager's `trigger()` method accept either an event instance, or an event name and optionally a target and parameters.
  
 Ie: triggering an event with some params but no target.
-```
+```php
 $event = new Event();
 $event->setName("event.name");
 $event->setParams(["data" => "something"]);
@@ -82,7 +82,7 @@ But since we are in the context of an object, values can be standard strings ins
 
 The method receive the event manager instance so that you can directly attach some events with a priority other than the default one.
 
-```
+```php
 class subscriber 
 {
     public function onSomething(EventInterface $event)

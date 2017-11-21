@@ -1,4 +1,4 @@
-# Log `namespace StdCmp\Log`
+# Log
 
 This Logging library provides standard (implements PSR-3), flexible and easily extensible facilities for logging information.
 
@@ -21,7 +21,7 @@ Remember that callables can be any of the following:
 
 ## Simple usage
 
-```
+```php
 $logger = new Logger("path/to/file.log");
 
 $logger->warning("something is somehow wrong");
@@ -47,7 +47,7 @@ To log an information, instantiate a logger and call the `log(string|int $level,
 You can also call one of the shortcuts methods (named after the level names).    
 Ie: `debug(string $message[, array context = []])`.
 
-```
+```php
 $logger = new Logger();
 
 $logger->log(LogLevel::WARNING, "OMG something is wrong"); // LogLevel is Psr\Log\LogLevel
@@ -81,7 +81,7 @@ So if logger has a filter that returns false, the record is not passed to any wr
 If a writer has a filter that returns false, the writer just bails. If there are more writers queuing for that logger, thay are called.
 
 Ie:
-```
+```php
 // a way to implement Monolog's "channel"
 $channelProcessor = function(array $record) {
     $record["channel"] = "channel_name";
@@ -99,7 +99,7 @@ Composite keys should match nested arrays in the context array.
 For any match found, the value is replaced in the string and the key discarded from the array.  
 Any key that has no equivalent in the context is left as-is.
 
-```
+```php
 $message = "{key} - {key2.key} - {unkown} - {un.known}";
 $context = [
     "key" => "value",
@@ -125,7 +125,7 @@ You may pass the desired format and/or the timezone to the constructor, otherwis
 
 Ie a priority filter:
 
-```
+```php
 // make the logger or writer work only if the priority is critical, alert or emergency
 $priorityHelper = function(array $record): bool {
     return in_array(["critical", "alert", "emergency"], $record["level"]);
@@ -150,7 +150,7 @@ If no writer is set on a logger, a `LogicException` will be thrown.
 If you don't want your logger to actually write messages, use an empty closure as a Noop writer.
 
 Ie:
-```
+```php
 // ...
 $writer = new StdCmp\Log\Writer\Stream("path/to/file.log");
 // no filter, default formatter
@@ -169,7 +169,7 @@ $logger->addWriter(function($record) {});
 Allow to write to any writable streams supported by PHP, which include files.
 Also accept a resource as first argument. In that case, the resource is not closed by the writer.
 
-```
+```php
 $writer = Writer\Stream("php://stderr");
 $writer = Writer\Stream("/path/to/file"); // shotcut for files
 $writer = Writer\Stream($resource); // shotcut for files
@@ -185,7 +185,7 @@ It expects its formatter to return an array with two keys:
 - "statement": The par that goes after "INSERT INTO tableName ", to be passed to PDO::prepare() method
 - "params": An associative array to be passed to the PDOStatement::execute() method  
 
-```
+```php
 $pdo = new \PDO(...);
 $writer = Writers\PDO(PDO $pdo, string $tableName);
 ```
@@ -196,7 +196,7 @@ Allow to write to the syslog.
 Use the Text formatter by default.  
 Require a formatter that returns a string.
 
-```
+```php
 $writer = Writers\Syslog([string $ident = "", int $option = null, int $facility = LOG_USER])
 ```
 
@@ -211,7 +211,7 @@ The Text formatter returns a single string of the desired format, with all place
 The default format is : "{timestamp} : {level} : {message} {context}\n";
 
 Ie with some HTML: 
-```
+```php
 $html = <<<EOL<h2>Log from website</h2>
 <ul>
   <li>{timestamp}</li>
@@ -231,7 +231,7 @@ Save any array or object field as json.
 
 If a key is missing from the record, this column will not be written.
 
-```
+```php
 $map = [
     // DB column name => record key
     "date" => timestamp",
