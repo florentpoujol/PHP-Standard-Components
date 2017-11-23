@@ -7,7 +7,7 @@ use Psr\Http\Message\UriInterface;
 
 abstract class Request extends Message implements RequestInterface
 {
-    public function populateFromGlobals()
+    protected function populateFromGlobals()
     {
         parent::populateFromGlobals();
 

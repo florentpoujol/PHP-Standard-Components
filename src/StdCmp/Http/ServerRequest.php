@@ -6,19 +6,20 @@ use Psr\Http\Message\ServerRequestInterface;
 
 class ServerRequest extends Request implements ServerRequestInterface
 {
-    public static function createFromGlobals(): self
+    public function __construct(bool $populateFromGlobals = true)
     {
-        $request = new ServerRequest();
-        $request->populateFromGlobals();
-        return $request;
+        if ($populateFromGlobals) {
+            $this->populateFromGlobals();
+        }
     }
 
-    public function populateFromGlobals()
+    protected function populateFromGlobals()
     {
         parent::populateFromGlobals();
 
         $this->cookieParams = $_COOKIE;
         $this->queryParams = $_GET;
+
         if (strcasecmp($this->method, "post") === 0) {
             $this->parsedBody = $_POST;
         } else {
@@ -26,6 +27,36 @@ class ServerRequest extends Request implements ServerRequestInterface
             if ($body !== false) {
                 $this->parsedBody = $body;
             }
+        }
+
+        $this->populateUploadedFiles();
+    }
+
+    protected function populateUploadedFiles()
+    {
+        foreach ($_FILES as $formFieldName => $fileInfo) {
+            if (is_array($fileInfo["name"])) {
+                // the form field is an array
+                $files = [];
+                foreach ($fileInfo as $key => $values) {
+
+                    foreach ($values as $id => $value) {
+                        // id is not necessarily numeric if the field name is   my-form[avatar] for instance (formFieldName is my-form, id is avatar
+                        if (!isset($files[$id])) {
+                            $files[$id] = [];
+                        }
+                        $files[$id][$key] = $value;
+                    }
+                }
+
+                $this->uploadedFiles[$formFieldName] = [];
+                foreach ($files as $id => $file) {
+                    $this->uploadedFiles[$formFieldName][$id] = new UploadedFile($file);
+                }
+                continue;
+            }
+
+            $this->uploadedFiles[$formFieldName] = new UploadedFile($fileInfo);
         }
     }
 

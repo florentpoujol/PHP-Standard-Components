@@ -7,7 +7,7 @@ use Psr\Http\Message\StreamInterface;
 
 abstract class Message implements MessageInterface
 {
-    public function populateFromGlobals()
+    protected function populateFromGlobals()
     {
         $protocol = explode("/", $_SERVER["SERVER_PROTOCOL"]);
         $this->protocolVersion = $protocol[1];
