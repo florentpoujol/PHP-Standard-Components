@@ -2,7 +2,6 @@
 
 namespace Cache;
 
-use function Sodium\crypto_aead_chacha20poly1305_encrypt;
 use StdCmp\Cache\FileCache;
 use PHPUnit\Framework\TestCase;
 use StdCmp\Cache\CacheItem;
