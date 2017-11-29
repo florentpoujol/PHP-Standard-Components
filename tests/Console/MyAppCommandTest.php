@@ -9,15 +9,15 @@ class MyAppCommandTest extends TestCase
 {
     function testSubCommands()
     {
-        $output = `php myapp.php subCmd:class`;
+        $output = shell_exec('php ' . __dir__ . '/myapp.php subCmd:class');
         $expected = "stuff done !";
         $this->assertSame($expected, $output);
 
-        $output = `php myapp.php subCmd:callable`;
+        $output = shell_exec('php ' . __dir__ . '/myapp.php subCmd:callable');
         $expected = "Static stuff done !";
         $this->assertSame($expected, $output);
 
-        $output = `php myapp.php subCmd:closure`;
+        $output = shell_exec('php ' . __dir__ . '/myapp.php subCmd:closure');
         $expected = "Closure called\n";
         $this->assertSame($expected, $output);
     }

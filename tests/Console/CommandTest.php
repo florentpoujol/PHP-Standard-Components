@@ -7,6 +7,7 @@ use PHPUnit\Framework\TestCase;
 
 class CommandTest extends TestCase
 {
+
     function testGetArguments()
     {
         $_SERVER["argv"] = ["filename.php", "firstArg", "-o", "secondArg", "--option=value"];
@@ -34,29 +35,28 @@ class CommandTest extends TestCase
 
     function testHasShortOptions()
     {
-        $output = `php mycommand.php --testname=hasShortOption -a -b=b -ff -c="c" -d d`;
+        $output = shell_exec('php ' . __dir__ . '/mycommand.php --testname=hasShortOption -a -b=b -ff -c="c" -d d');
         $expected = "1-1-1-1-1--";
         $this->assertSame($expected, $output);
     }
 
     function testHasLongOptions()
     {
-        $stuff = "";
-        $output = `php mycommand.php --testname=hasLongOption --aa --bb=bb --cc="cc" --dd "dd" --ee="ee"`;
+        $output = shell_exec('php ' . __dir__ . '/mycommand.php --testname=hasLongOption --aa --bb=bb --cc="cc" --dd "dd" --ee="ee"');
         $expected = "1-1-1-1--";
         $this->assertSame($expected, $output);
     }
 
     function testGetShortOptions()
     {
-        $output = `php mycommand.php --testname=getShortOption -a -b=b -ff -c="c" -d d`;
+        $output = shell_exec('php ' . __dir__ . '/mycommand.php --testname=getShortOption -a -b=b -ff -c="c" -d d');
         $expected = "default-b-f-c-d--";
         $this->assertSame($expected, $output);
     }
 
     function testGetLongOptions()
     {
-        $output = `php mycommand.php --testname=getLongOption --aa --bb=bb --cc="cc" --dd dd`;
+        $output = shell_exec('php ' . __dir__ . '/mycommand.php --testname=getLongOption --aa --bb=bb --cc="cc" --dd dd');
         $expected = "default-bb-cc-dd--";
         $this->assertSame($expected, $output);
     }
@@ -64,7 +64,7 @@ class CommandTest extends TestCase
 
     function testWriteVersion()
     {
-        $output = `php mycommand.php version`;
+        $output = shell_exec('php ' . __dir__ . '/mycommand.php version');
         $expected =  "Base Command \nA base command, to be extended.\n";
         $this->assertSame($expected, $output);
 
