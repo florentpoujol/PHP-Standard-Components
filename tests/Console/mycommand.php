@@ -11,9 +11,11 @@ $result = "";
 if ($name === "hasShortOption") {
     $result .= $cmd->hasOption("a") . "-";
     $result .= $cmd->hasOption("b") . "-";
+    $result .= $cmd->hasOption("f") . "-";
     $result .= $cmd->hasOption("c") . "-";
     $result .= $cmd->hasOption("d") . "-";
     $result .= $cmd->hasOption("e") . "-"; // non existant
+    // $result .= print_r($cmd->getOptions(), true);
 }
 elseif ($name === "hasLongOption") {
     $result .= $cmd->hasOption("aa") . "-";
@@ -25,6 +27,7 @@ elseif ($name === "hasLongOption") {
 elseif ($name === "getShortOption") {
     $result .= $cmd->getOption("a", "default") . "-";
     $result .= $cmd->getOption("b", "default") . "-";
+    $result .= $cmd->getOption("f") . "-";
     $result .= $cmd->getOption("c") . "-";
     $result .= $cmd->getOption("d") . "-";
     $result .= $cmd->getOption("e") . "-";

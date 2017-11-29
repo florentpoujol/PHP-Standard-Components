@@ -5,18 +5,6 @@ namespace Console;
 use StdCmp\Console\Command;
 use PHPUnit\Framework\TestCase;
 
-class MyApp extends Command
-{
-    function getConfig(): array
-    {
-        $myconfig = [
-            "argumentNames" => ["arg1", "arg2"],
-        ];
-        $this->config = array_merge($this->config, $myconfig);
-        return $this->config;
-    }
-}
-
 class CommandTest extends TestCase
 {
     function testGetArguments()
@@ -32,9 +20,7 @@ class CommandTest extends TestCase
     {
         $_SERVER["argv"] = ["filename.php", "firstArg", "-o", "secondArg", "--option=value"];
         $cmd = new Command();
-        $config = $cmd->getConfig();
-        $config["argumentNames"] = ["arg1", "arg2"];
-        $cmd->setConfig($config);
+        $cmd->config["argumentNames"] = ["arg1", "arg2"];
 
         $arg = $cmd->getArgument("arg1");
         $this->assertSame("firstArg", $arg);
@@ -48,29 +34,29 @@ class CommandTest extends TestCase
 
     function testHasShortOptions()
     {
-        $output = `php mycommand.php --testname=hasShortOption -a -b=b -c="c" -d d 2>&1`;
-        $expected = "1-1-1-1--";
+        $output = `php mycommand.php --testname=hasShortOption -a -b=b -ff -c="c" -d d`;
+        $expected = "1-1-1-1-1--";
         $this->assertSame($expected, $output);
     }
 
     function testHasLongOptions()
     {
         $stuff = "";
-        $output = `php mycommand.php --testname=hasLongOption --aa --bb=bb --cc="cc" --dd "dd" --ee="ee" 2>&1`;
+        $output = `php mycommand.php --testname=hasLongOption --aa --bb=bb --cc="cc" --dd "dd" --ee="ee"`;
         $expected = "1-1-1-1--";
         $this->assertSame($expected, $output);
     }
 
     function testGetShortOptions()
     {
-        $output = `php mycommand.php --testname=getShortOption -a -b=b -c="c" -d d 2>&1`;
-        $expected = "default-b-c-d--";
+        $output = `php mycommand.php --testname=getShortOption -a -b=b -ff -c="c" -d d`;
+        $expected = "default-b-f-c-d--";
         $this->assertSame($expected, $output);
     }
 
     function testGetLongOptions()
     {
-        $output = `php mycommand.php --testname=getLongOption --aa --bb=bb --cc="cc" --dd dd 2>&1`;
+        $output = `php mycommand.php --testname=getLongOption --aa --bb=bb --cc="cc" --dd dd`;
         $expected = "default-bb-cc-dd--";
         $this->assertSame($expected, $output);
     }
@@ -78,20 +64,18 @@ class CommandTest extends TestCase
 
     function testWriteVersion()
     {
-        $output = `php mycommand.php --version 2>&1`;
+        $output = `php mycommand.php version`;
         $expected =  "Base Command \nA base command, to be extended.\n";
         $this->assertSame($expected, $output);
 
         $cmd = new Command();
-        $config = $cmd->getConfig();
-        $config["version"] = "1.2.3";
-        $config["authors"] = ["Florent", "Florian"];
-        $config["description"] = "A superb\ncommand";
-        $cmd->setConfig($config);
+        $cmd->config["version"] = "1.2.3";
+        $cmd->config["authors"] = ["Florent", "Florian"];
+        $cmd->config["description"] = "A superb\ncommand";
 
         $expected =  "Base Command (v1.2.3) by Florent, Florian\nA superb\ncommand\n";
         $this->expectOutputString($expected);
-        $cmd->writeVersion();
+        echo $cmd->getVersionText();
     }
 
     function testRenderTable()
@@ -130,11 +114,11 @@ class CommandTest extends TestCase
     {
         $expected =  "Usage: Not much to do with it in the cmd line, please extends the class to create your own console application.\n";
         $expected .= "              \n";
-        $expected .= "    --version Shows the name, version, authors and description.\n";
-        $expected .= "    --help    Shows the usage and option list.\n";
+        $expected .= "    --option  A useful option.\n";
 
         $cmd = new Command();
-        $output = $cmd->getHelp();
+        $cmd->config["options"][] = ["", "--option", "A useful option."];
+        $output = $cmd->getHelpText();
         $this->assertSame($expected, $output);
     }
 

@@ -4,62 +4,106 @@ namespace StdCmp\Console;
 
 class Command
 {
+    /**
+     * @var array Raw argument list. Original $argv argument passed to init() or $_SERVER['argv'].
+     */
     protected $argv = [];
     protected $arguments = [];
-    protected $argumentsByName = [];
+    protected $options = []; // key = name, value = value or null
 
-    public function __construct()
-    {
-        $argv = $_SERVER["argv"];
-        $this->argv = $argv;
-
-        array_shift($argv); // remove the file name which is always the first argument
-        foreach ($argv as $arg) {
-            if ($arg[0] !== "-") { // remove options
-                // we cannot remove options values when they are separated by a space
-                // since they may be actual arguments
-                // unless we know that the preceding option, if any, expect no value...
-                $this->arguments[] = $arg;
-            }
-        }
-
-        // $this->config = array_merge($this->config, $this->getConfig());
-        $this->config = $this->getConfig();
-
-        $argNames = $this->config["argumentNames"] ?? [];
-        foreach ($argNames as $id => $name) {
-            if (!isset($argv[$id])) {
-                break;
-            }
-            $this->argumentsByName[$name] = $argv[$id];
-        }
-
-        if ($this->hasOption("version")) {
-            $this->writeVersion();
-        } elseif ($this->hasOption("help")) {
-            $this->writeHelp();
-        }
-    }
-
-    protected $config = [
+    public $config = [
         "name" => "Base Command",
         "description" => "A base command, to be extended.",
 
         "usage" => "Not much to do with it in the cmd line, please extends the class to create your own console application.",
-        "optionList" => [
-            ["", "--version", "Shows the name, version, authors and description."],
-            ["", "--help", "Shows the usage and option list."],
+
+        "tasks" => [
+            "version" => [
+                "target" => "writeVersion",
+                "description" => "Shows the name, version, authors and description."
+            ],
+            "help" => [
+                "target" => "writeHelp",
+                "description" => "Shows the usage and option list."
+            ],
+            "list" => [
+                "target" => "writeTaskList",
+                "description" => "Shows the task list."
+            ],
         ],
     ];
 
-    public function getConfig(): array
+    public function __construct(array $argv = null)
     {
-        return $this->config;
+        if ($argv === null) {
+            $argv = $_SERVER["argv"];
+        }
+        $this->argv = $argv;
+
+        array_shift($argv); // remove the file name which is always the first argument
+        // build the argument and option lists
+        foreach ($argv as $arg) {
+            if ($arg[0] === "-") {
+                $parts = explode("=", $arg);
+                $parts[0] = str_replace("-", "", $parts[0]);
+                $this->options[$parts[0]] = $parts[1] ?? null;
+                // We cannot get options values here when they are separated by a space
+                // since they may be actual arguments
+                // unless we know that the preceding option expect a mandatory value.
+                // Same where the value is appended without = sign
+            } else {
+                $this->arguments[] = $arg;
+            }
+        }
+
+        // create the arrays if they don't so that we don't have to check if they exists everytime we want to use them
+        if (!isset($this->config["options"])) {
+            $this->config["options"] = [];
+        }
+        if (!isset($this->config["optionAliases"])) {
+            $this->config["optionAliases"] = [];
+        }
+        if (!isset($this->config["argumentNames"])) {
+            $this->config["argumentNames"] = [];
+        }
+        if (!isset($this->config["tasks"])) {
+            $this->config["tasks"] = [];
+        }
+
+        if (isset($this->arguments[0])) {
+            $this->runTask($this->arguments[0]);
+        }
     }
 
-    public function setConfig(array $config)
+    /**
+     * @return mixed
+     */
+    public function runTask(string $name)
     {
-        $this->config = $config;
+        if (!isset($this->config["tasks"][$name])) {
+            return null;
+        }
+
+        $target = $this->config["tasks"][$name];
+        if (is_array($target) && isset($target["target"])) {
+            $target = $target["target"];
+        }
+
+        if (is_string($target) && method_exists($this, $target)) {
+            return $this->{$target}();
+        }
+
+        if (is_callable($target)) {
+            return $target($this);
+        }
+
+        if (class_exists($target)) {
+            $argv = $this->argv;
+            array_splice($argv, 1, 1); // remove task name (second argument)
+            return new $target($argv);
+        }
+
+        throw new \UnexpectedValueException("Sub command '$name' value is not a callable or doesn't extend Command");
     }
 
     public function getArguments(): array
@@ -69,30 +113,16 @@ class Command
 
     public function getArgument(string $name)
     {
-        // return $this->argumentsByName[$name] ?? null;
-        $argNames = $this->config["argumentNames"] ?? [];
-        $id = array_search($name, $argNames);
+        $id = array_search($name, $this->config["argumentNames"]);
         if ($id !== false) {
             return $this->arguments[$id] ?? null;
         }
         return null;
     }
 
-    protected function getopt(string $name, string $append = ""): array
+    public function getOptions(): array
     {
-        $longOpt = [];
-        $nameLength = strlen($name);
-        $name .= $append;
-
-        if ($nameLength < 1) {
-            return [];
-        }
-
-        if ($nameLength >= 2) {
-            $longOpt[] = $name;
-            $name = "";
-        }
-        return getopt($name, $longOpt);
+        return $this->options;
     }
 
     /**
@@ -101,22 +131,48 @@ class Command
      */
     public function getOption(string $name, $defaultValue = null)
     {
-        $append = ":";
-        if ($defaultValue !== null) {
-            $append .= ":";
-        }
-        $options = $this->getopt($name, $append);
+        $value = $this->options[$name] ?? $defaultValue;
 
-        if ($defaultValue !== null && isset($options[$name]) && $options[$name] === false) {
-            // option present but without value
-            return $defaultValue;
+        if ($value === null) {
+            // option name not in the options array, or with null value
+            // and default value is null, so suppose the option has a mandatory value
+            // value is not already in the options array if the option value is appended to the option name or separated by a space
+            // (not testable in a non-cli context)
+            $queryName = "$name:";
+            $longOpt = [];
+            if (strlen($name) >= 2) {
+                $longOpt = [$queryName];
+                $queryName = "";
+            }
+            $value = getopt($queryName, $longOpt);
+            $value = $value[$name] ?? $defaultValue;
         }
-        return $options[$name] ?? $defaultValue;
+
+        return $value;
     }
 
     public function hasOption(string $name): bool
     {
-        return isset($this->getopt($name)[$name]);
+        $hasOption = array_key_exists($name, $this->options) !== false;
+        // do not use isset() here since it would return false
+        // for keys existing in option but with the null value
+
+        if ($hasOption === false) {
+            // options which value is appended to the name are not in the options array
+            // not has their actual name, but as the name+value appended
+            // so look for it with getopt() for a more precise search
+            // (not testable in a non-cli context)
+            $queryName = "$name:";
+            $longOpt = [];
+            if (strlen($name) >= 2) {
+                $longOpt = [$queryName];
+                $queryName = "";
+            }
+            $value = getopt($queryName, $longOpt);
+            $hasOption = isset($value[$name]);
+        }
+
+        return $hasOption;
     }
 
     public const COLOR_DEFAULT = "default";
@@ -184,15 +240,15 @@ class Command
 
     public function renderTable(array $headers, array $rows, string $colSeparator = ""): string
     {
-        $colSizes = [];
+        $colWidths = [];
         foreach ($headers as $id => $header) {
             if ($id !== 0 && $colSeparator !== "") {
                 $header = $colSeparator.$header;
                 $headers[$id] = $header;
             }
-            $colSizes[] = strlen($header);
+            $colWidths[] = strlen($header);
         }
-        $colSizes[count($colSizes) - 1] = -1; // no restrictions on last column
+        $colWidths[count($colWidths) - 1] = -1; // no restrictions on last column
 
         $table = implode("", $headers) . "\n";
 
@@ -202,16 +258,16 @@ class Command
                     $cell = $colSeparator.$cell;
                 }
 
-                $targetLength = $colSizes[$colId];
-                if ($targetLength !== -1) {
-                    $cellLength = strlen($cell);
-                    if ($cellLength === $targetLength) {
+                $targetWidth = $colWidths[$colId];
+                if ($targetWidth !== -1) {
+                    $cellWidth = strlen($cell);
+                    if ($cellWidth === $targetWidth) {
                         continue;
                     }
 
-                    $cell = str_pad($cell, $targetLength);
-                    if ($cellLength > $targetLength) {
-                        $cell = substr($cell, 0, $targetLength);
+                    $cell = str_pad($cell, $targetWidth);
+                    if ($cellWidth > $targetWidth) {
+                        $cell = substr($cell, 0, $targetWidth);
                     }
                 }
                 $row[$colId] = $cell;
@@ -223,12 +279,12 @@ class Command
         return $table;
     }
 
-    public function writeTable(array $headers, array $rows)
+    public function writeTable(array $headers, array $rows, string $colSeparator = "")
     {
-        echo $this->renderTable($headers, $rows);
+        echo $this->renderTable($headers, $rows, $colSeparator);
     }
 
-    public function getVersion(): string
+    public function getVersionText(): string
     {
         $version = "";
         if (isset($this->config["name"])) {
@@ -263,10 +319,10 @@ class Command
 
     public function writeVersion()
     {
-        echo $this->getVersion();
+        echo $this->getVersionText();
     }
 
-    public function getHelp(): string
+    public function getHelpText(): string
     {
         $help = "";
         if (isset($this->config["usage"])) {
@@ -278,9 +334,9 @@ class Command
             $help .= $usage . "\n";
         }
 
-        if (isset($this->config["optionList"])) {
+        if (isset($this->config["options"])) {
             $headers = ["    ", "          ", ""];
-            $help .= $this->renderTable($headers, $this->config["optionList"]);
+            $help .= $this->renderTable($headers, $this->config["options"]);
         }
 
         return $help;
@@ -288,7 +344,36 @@ class Command
 
     public function writeHelp()
     {
-        echo $this->getHelp();
+        echo $this->getVersionText();
+    }
+
+    public function getTaskListText(): string
+    {
+        $tasks = $this->config["tasks"] ?? [];
+        if (empty($tasks)) {
+            return "No task defined.";
+        }
+
+        $list = "Available tasks:\n";
+
+        $headers = ["   Name        ", "   Description"];
+        $rows = [];
+        foreach ($tasks as $name => $task) {
+            $description = "";
+            if (is_array($task) && isset($task["description"])) {
+                $description = $task["description"];
+            }
+
+            $rows[] = [$name, $description];
+        }
+
+        $list .= $this->renderTable($headers, $rows, "  ");
+        return $list . "\n";
+    }
+
+    public function writeTaskList()
+    {
+        echo $this->getTaskListText();
     }
 
     public function prompt(string $msg = "")
@@ -297,8 +382,7 @@ class Command
             echo $msg . "\n";
         }
 
-        $returned = rtrim(fgets(STDIN), "\n");
-        return $returned;
+        return rtrim(fgets(STDIN), "\n");
     }
 
     public function promptConfirm(string $msg = "Confirm ? Write 'y' for yes.")
