@@ -178,7 +178,7 @@ class QueryBuilderTest extends TestCase
         $query->delete()
             ->table("test")
             ->where("name = stuff")
-            ->where(function ($query) {
+            ->where(function (QueryBuilder $query) {
                 $query->where("other = stuff")
                 ->where("email", ":email");
             } )
@@ -205,7 +205,7 @@ class QueryBuilderTest extends TestCase
         $query->delete()
             ->table("test")
             ->whereNull("name")
-            ->orWhere(function ($query) {
+            ->orWhere(function (QueryBuilder $query) {
                 $query->where("other = stuff")
                     ->orWhereNotNull("email");
             } )
@@ -233,7 +233,7 @@ class QueryBuilderTest extends TestCase
             ->table("test")
             ->join("otherTable")
             ->on("field", "value")
-            ->on(function ($q) {
+            ->on(function (QueryBuilder $q) {
                 $q->orOn("field", "value");
                 $q->on("field3", "value3");
             })
@@ -249,7 +249,7 @@ class QueryBuilderTest extends TestCase
 
             ->join("otherTable")
             ->on("field", "value")
-            ->on(function ($q) {
+            ->on(function (QueryBuilder $q) {
                 $q->orOn("field", "value");
                 $q->on("field3", "value3");
             })
@@ -298,5 +298,21 @@ class QueryBuilderTest extends TestCase
             ."HAVING field = 'value' OR field2 = 'value2' "
             ."ORDER BY field DESC LIMIT 10 OFFSET 5";
         $this->assertSame($expected, $query->toString());
+    }
+
+    function testUpdate()
+    {
+        $query = new QueryBuilder($this->pdo);
+        $data = [
+            "field1" => 1,
+            "field2" => 2,
+        ];
+        $actual = $query->update($data)
+            ->inTable("test")
+            ->where("field3", 0)
+            ->toString();
+
+        $expected = "UPDATE test SET field1 = :field1, field2 = :field2 WHERE field3 = '0'";
+        $this->assertSame($expected, $actual);
     }
 }

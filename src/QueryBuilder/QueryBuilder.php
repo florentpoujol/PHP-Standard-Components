@@ -11,11 +11,11 @@ class QueryBuilder
 
     // actions
 
-    protected const ACTION_INSERT = "INSERT";
-    protected const ACTION_INSERT_REPLACE = "INSERT OR REPLACE";
-    protected const ACTION_UPDATE = "UPDATE";
-    protected const ACTION_DELETE = "DELETE";
-    protected const ACTION_SELECT = "SElECT";
+    const ACTION_INSERT = "INSERT";
+    const ACTION_INSERT_REPLACE = "INSERT OR REPLACE";
+    const ACTION_UPDATE = "UPDATE";
+    const ACTION_DELETE = "DELETE";
+    const ACTION_SELECT = "SElECT";
 
     protected $action = "";
 
@@ -108,8 +108,7 @@ class QueryBuilder
             }
         }
 
-        $query .= substr($query, 0, -2);
-        $query .= $this->buildWhereQueryString();
+        $query = substr($query, 0, -2) . " " . $this->buildWhereQueryString();
         return rtrim($query);
     }
 
@@ -216,15 +215,15 @@ class QueryBuilder
     }
     public function leftJoin(string $tableName, string $alias = null): self
     {
-        return $this->join($tableName, "LEFT");
+        return $this->join($tableName, $alias, "LEFT");
     }
     public function rightJoin(string $tableName, string $alias = null): self
     {
-        return $this->join($tableName, "RIGHT");
+        return $this->join($tableName, $alias, "RIGHT");
     }
     public function fullJoin(string $tableName, string $alias = null): self
     {
-        return $this->join($tableName, "FULL");
+        return $this->join($tableName, $alias, "FULL");
     }
 
     /**
@@ -286,6 +285,7 @@ class QueryBuilder
     }
 
     /**
+     *
      * @param string|int $min
      * @param string|int $max
      */
