@@ -171,7 +171,7 @@ class DIContainer implements ContainerInterface
             $typeIsBuiltin = false;
             $type = $param->getType();
             if ($type !== null) {
-                $typeName = $type->getName();
+                $typeName = (string)$type;
                 $typeIsBuiltin = $type->isBuiltin();
             }
 
@@ -209,7 +209,7 @@ class DIContainer implements ContainerInterface
 
             if ($isParamMandatory) {
                 try {
-                    $object = $this->make($typeName);
+                    $object = $this->get($typeName);
                 } catch (\Exception $exception) {
                     throw new \Exception("Constructor argument '$paramName' for class '$className' has type '$typeName' but the container don't know how to resolve it.");
                 }

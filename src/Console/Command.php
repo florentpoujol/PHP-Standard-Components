@@ -175,14 +175,14 @@ class Command
         return $hasOption;
     }
 
-    public const COLOR_DEFAULT = "default";
-    public const COLOR_RED = "red";
-    public const COLOR_GREEN = "green";
-    public const COLOR_YELLOW = "yellow";
-    public const COLOR_BLUE = "blue";
-    public const COLOR_MAGENTA = "magenta";
-    public const COLOR_CYAN = "cyan";
-    public const COLOR_GRAY = "gray";
+    const COLOR_DEFAULT = "default";
+    const COLOR_RED = "red";
+    const COLOR_GREEN = "green";
+    const COLOR_YELLOW = "yellow";
+    const COLOR_BLUE = "blue";
+    const COLOR_MAGENTA = "magenta";
+    const COLOR_CYAN = "cyan";
+    const COLOR_GRAY = "gray";
 
     protected $colors = [
         "default" => "0",
