@@ -90,10 +90,17 @@ $query->where("field", "value");
 $query->where("field", "=", "value");
 ```
 
-You can set the whole expression as a single argument
+You can set the whole expression as a single argument:
 ```php
 $query->where("field = value");
 ```
+
+Or the single argument can be an associative array of fields and values:
+```php
+$data = ["theField" => "theValue"];
+$query->where($data); // this generate the following query string: theField = :theField
+```
+In this condition, and if you run the query, you don't need to pass the data again to the `execute()` method. 
 
 You can also use the following helpers:
 - `whereNull($field)` / `whereNotNull($field)`
@@ -198,7 +205,7 @@ __Limit and Offset__
 ```php
 $query->limit(10)->offset(5);
 // is the same as
-$query->limit(10, 5); 
+$query->limit(10, 5); // note that this the opposite order as MySQL's LIMIT clause which is: LIMIT offset, count
 ```
 
 ## Non query building API

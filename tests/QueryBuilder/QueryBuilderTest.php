@@ -188,6 +188,22 @@ class QueryBuilderTest extends TestCase
         $this->assertSame($expected, $query->toString());
     }
 
+    function testWhereSingleArrayArgument()
+    {
+        $data = [
+            "name" => "stuff",
+            "email" => "the_email",
+            "id" => 5
+        ];
+        $query = new QueryBuilder();
+        $query->select()
+            ->fromTable("test")
+            ->where($data);
+
+        $expected = "SELECT * FROM test WHERE name = :name AND email = :email AND id = :id";
+        $this->assertSame($expected, $query->toString());
+    }
+
     function testOrWhere()
     {
         $query = new QueryBuilder();

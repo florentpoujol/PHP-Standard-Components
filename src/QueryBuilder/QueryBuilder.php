@@ -548,14 +548,21 @@ class QueryBuilder
                 return $this;
             }
             $clause["expr"] = array_splice($clauses, $beforeCount);
-        }
-        elseif ($sign === null && $value === null) {
+
+        } elseif (is_array($field)) {
+            foreach ($field as $fieldName => $value) {
+                $this->addConditionalClause($clauses, "$fieldName = :$fieldName", null, null, $cond);
+            }
+            $this->setInputParams($field);
+            return $this;
+
+        } elseif ($sign === null && $value === null) {
             $clause["expr"] = $field;
-        }
-        elseif ($sign !== null && $value === null) {
+
+        } elseif ($sign !== null && $value === null) {
             $clause["expr"] = "$field = " . $this->escapeValue($sign);
-        }
-        elseif ($sign !== null && $value !== null) {
+
+        } elseif ($sign !== null && $value !== null) {
             $clause["expr"] = "$field $sign " . $this->escapeValue($value);
         }
 
