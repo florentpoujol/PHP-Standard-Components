@@ -35,13 +35,14 @@ class SimpleAutowire
 
 class OnlyParams
 {
-    /**
-     * @var int
-     */
-    public $priority;
+    public $priority = -999;
 
+    /**
+     * @var MonoLogger
+     */
     public $monoLogger;
-    public $string;
+
+    public $string = "";
 
     public function __construct(int $priority, $monoLogger, $string)
     {
@@ -54,7 +55,7 @@ class OnlyParams
 class AutowirePlusParams extends OnlyParams
 {
     /**
-     * @var LoggerInterface
+     * @var OtherLogger
      */
     public $logger;
 

@@ -14,19 +14,11 @@ class DIContainer implements ContainerInterface
     /**
      * Values cached by get().
      * Typically object instances, but may be any values returned by closures or found in services.
-     * @var array
      */
     protected $cached = [];
 
-    /**
-     * @var array
-     */
     protected $parameters = [];
 
-    /**
-     * @param array|null $services
-     * @param array|null $parameters
-     */
     public function __construct(array $services = null, array $parameters = null)
     {
         if ($services !== null) {
@@ -39,8 +31,7 @@ class DIContainer implements ContainerInterface
     }
 
     /**
-     * @param string $name
-     * @param $value
+     * @param mixed $value
      */
     public function setParameter(string $name, $value)
     {
@@ -48,7 +39,6 @@ class DIContainer implements ContainerInterface
     }
 
     /**
-     * @param string $name
      * @return mixed
      */
     public function getParameter(string $name)
@@ -57,8 +47,7 @@ class DIContainer implements ContainerInterface
     }
 
     /**
-     * @param string $serviceName
-     * @param mixed $value String (alias), array (constructor arguments), callable (object factory).
+     * @param object|array|callable|string $value Object instance, service alias, constructor arguments, object factory.
      */
     public function set(string $serviceName, $value)
     {
@@ -71,17 +60,11 @@ class DIContainer implements ContainerInterface
         $this->services[$serviceName] = $value;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function has($serviceName)
     {
         return isset($this->cached[$serviceName]) || isset($this->services[$serviceName]);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function get($serviceName)
     {
         if (isset($this->cached[$serviceName])) {
@@ -139,11 +122,13 @@ class DIContainer implements ContainerInterface
                 return $this->createObject($value);
             }
 
-            throw new \Exception("Service '$serviceName' has a string value '$value' that is neither another known service nor a class name.");
+            throw new \UnexpectedValueException("Service '$serviceName' resolve to a string value '$value' that is neither another known service nor a class name.");
         }
 
-        $this->cached[$serviceName] = $value;
-        return $value;
+        // by this point $value is not an object factory(callable), constructor arguments (array) or an alias (string)
+        // it's also something else than an object instance since set() already cache instance that would be passed to it
+        $type = gettype($value);
+        throw new \UnexpectedValueException("Unexpected value with type '$type' for service '$serviceName'");
     }
 
     /**

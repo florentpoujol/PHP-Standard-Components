@@ -175,6 +175,14 @@ class DIContainerTest extends TestCase
 
         $this->assertSame("a simple string", $object->string);
         $this->assertSame(123, $object->priority);
+
+        // make sure it is always the same instance of OtherLogger that is injected but a new intance of Monologer
+        $object2 = $this->container->make(AutowirePlusParams::class);
+        $object3 = $this->container->make(AutowirePlusParams::class);
+
+        $this->assertNotSame($object2, $object3);
+        $this->assertSame($object2->logger, $object3->logger);
+        $this->assertNotSame($object2->monoLogger, $object3->monoLogger);
     }
 
     function testGetThrowsExceptionOnUnresolvedName()
