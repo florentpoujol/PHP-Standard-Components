@@ -31,7 +31,7 @@ $value = $this->prompt("What is the meaning of life ?");
 if ($this->promptConfirm("You sure ?")) {
     // any answer that begins by Y (case-insensitive) is considered true
 }
-$pass = $this->promptPassword(); // password is no displayed as the user type it (don't work on Windows)
+$pass = $this->promptPassword(); // password is no displayed when the user type it (don't work on Windows)
 
 
 $cmd->write("something");

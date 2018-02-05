@@ -1,18 +1,16 @@
 # Event Manager
 
-PSR-14 compliant.
+Compliant with the abandoned PSR-14.
 
 ## Events
 
-An event is something that happens in your application. It is represented by a class that implements `EventInterface`.
+An event is something that happens in your application. It is represented by a class that implements `EventInterface`, and typically extends the base `Event` class.
 
 As such, it usually contains a name, and optionally a target and some parameters.
 
-The name is usually "contained" in the name of the class that extends the base `Event` class.
-
-The target is expected to be an object relevant to the event, which give it some context.
-
-The parameters is an array of arbitrary data.
+- The name should be "contained" in the name of the class, for convenience.
+- The parameters is an array of arbitrary data.
+- The target is expected to be an object relevant to the event, which give it some context.
 
 ## Attach listeners to events
 

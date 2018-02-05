@@ -5,7 +5,7 @@ Both PSR-6 and PSR-16 compliant, with tag support.
 ## Simple Use
 
 ```php
-$cache = new FileCache("/path/to/dir"); // default expiration + 1 years
+$cache = new FileCache("/path/to/dir"); // default expiration = +1 years
 $cache = new PDOCache($pdo, "my_cache_table_name"); // no default expiration
 $cache = new ArrayCache(); // no expiration support
 
@@ -37,6 +37,8 @@ $cache->clear(); // delete all the keys
 
 ## Working with Items
 
+Cache items are containers that can have a key, a value, an expiration and tags.
+
 ```php
 $item = new CacheItem("key", "value", $expiration);
 // or
@@ -59,6 +61,8 @@ $timestamp = $item->getExpiration(); // null when nothing set (FileCache always 
 
 ## Working with tags
 
+Tags are a convenient way to group and retrieve related items together.
+
 ```php
 $item = new CacheItem(...);
 
@@ -67,7 +71,8 @@ $item->setTags(["the_tag", "another_tag"]);
 
 $tags = $item->getTags();
 
-// use normal set item
+// use setKey(), set()...
+
 $cache->save($item);
 
 $cache->hasTag("the_tag");

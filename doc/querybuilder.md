@@ -2,7 +2,7 @@
 
 The query builder helps you create SQL queries in an expressive, fluent way, and if needed to execute them through PDO.
 
-The primary use of the query builder is to build a query string suitable to be passed to the PDO `prepare` or `query` method for instance.
+The primary use of the query builder is to build a query string suitable to be passed to the PDO `prepare`, `query` or `exec` methods for instance.
 
 But if supplied with a PDO instance, you can run the query directly from the builder object.
 

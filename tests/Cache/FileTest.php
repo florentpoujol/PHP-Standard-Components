@@ -19,12 +19,11 @@ class FileTest extends TestCase
      */
     protected $cache;
 
-    public function __construct($name = null, array $data = [], $dataName = '')
+    public function setup()
     {
-        parent::__construct($name, $data, $dataName);
-
         $this->dirPath = self::$sDirPath;
         $this->cache = new FileCache($this->dirPath);
+        parent::setup();
     }
 
     public static function setUpBeforeClass()

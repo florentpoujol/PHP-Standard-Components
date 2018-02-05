@@ -89,7 +89,7 @@ $container->set(DoSomething::class, [
 ]);
 ```
 
-You can also reference other services in the argument's list by prepending thair name with `"@"`:
+You can also reference other services in the argument's list by prepending their name with `"@"`:
 ```php
 $container->set(DoSomething::class, [
     "logger" => "@logger", // the key is the argument name, the value is the service name
